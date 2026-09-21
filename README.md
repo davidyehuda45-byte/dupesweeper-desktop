@@ -9,6 +9,20 @@ Aplikasi ini dikompilasi menjadi **single binary mandiri berukuran sangat ringka
 
 ---
 
+## 🚀 Download & Jalankan Langsung (Tanpa Install & Tanpa Clone)
+
+DupeSweeper adalah aplikasi desktop **portable standalone**. Pengguna **tidak perlu** meng-clone git repository, tidak perlu meng-install Rust atau compiler apa pun. Cukup unduh file aplikasinya dan jalankan langsung:
+
+| Sistem Operasi | File Aplikasi Desktop (Klik untuk Unduh) | Ukuran | Cara Menjalankan |
+|---|---|:---:|---|
+| **🪟 Windows (x64)** | [⬇️ **dupesweeper-windows-x86_64.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-windows-x86_64.exe) | ~5.0 MB | Unduh & **klik 2x** file `.exe`. Langsung terbuka! |
+| **🐧 Linux (x64)** | [⬇️ **dupesweeper-linux-x86_64**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-linux-x86_64) | ~11.3 MB | `chmod +x dupesweeper-linux-x86_64` lalu `./dupesweeper-linux-x86_64` |
+| **🍎 macOS (Universal)** | [⬇️ **dupesweeper-macos-universal**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-macos-universal) | ~4.5 MB | `chmod +x dupesweeper-macos-universal` lalu `./dupesweeper-macos-universal` |
+
+> 💡 **Halaman Rilis Lengkap:** Seluruh riwayat versi, changelog, dan source code arsip dapat diakses melalui [GitHub Releases](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases).
+
+---
+
 ## 🌐 Fitur Baru di v6.0.0: Dukungan Cross-Platform Penuh
 
 ### 1. Arsitektur Abstraksi Platform (`src/platform/`)
