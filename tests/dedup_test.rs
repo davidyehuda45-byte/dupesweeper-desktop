@@ -682,10 +682,8 @@ fn test_end_to_end_template_fingerprint_scanner() {
 
     // Vite React react.svg content (Documentation template)
     // Hash: 679fc68d782e2ec79add7891c0181421808eecff388149ad3cd73e9bf41ab113
-    // We can write authentic content by copying from scratch or calculating
-    // Let's write the exact byte content of react.svg from scratch
-    let scratch_react_svg = PathBuf::from(r"C:\Users\Admin\.gemini\antigravity\brain\3421f6fe-4f97-435a-92a3-a58ffaa100fc\scratch\vite-react-test\src\assets\react.svg");
-    let react_svg_bytes = fs::read(&scratch_react_svg).expect("Must read scratch react.svg");
+    let fixture_react_svg = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/react.svg");
+    let react_svg_bytes = fs::read(&fixture_react_svg).expect("Must read fixture react.svg");
 
     let svg1 = p1.join("react.svg");
     let svg2 = p2.join("react.svg");
@@ -693,8 +691,8 @@ fn test_end_to_end_template_fingerprint_scanner() {
     fs::write(&svg2, &react_svg_bytes).unwrap();
 
     // Laravel routes/web.php content (Functional template)
-    let scratch_routes = PathBuf::from(r"C:\Users\Admin\.gemini\antigravity\brain\3421f6fe-4f97-435a-92a3-a58ffaa100fc\scratch\laravel-test\routes\web.php");
-    let routes_bytes = fs::read(&scratch_routes).expect("Must read scratch web.php");
+    let fixture_routes = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/web.php");
+    let routes_bytes = fs::read(&fixture_routes).expect("Must read fixture web.php");
 
     let r1 = p1.join("web.php");
     let r2 = p2.join("web.php");
@@ -747,8 +745,8 @@ fn test_end_to_end_template_fingerprint_scanner() {
 fn test_modified_framework_file_no_longer_matches_template() {
     use dupesweeper::scanner::template_fingerprints::match_template;
 
-    let scratch_routes = PathBuf::from(r"C:\Users\Admin\.gemini\antigravity\brain\3421f6fe-4f97-435a-92a3-a58ffaa100fc\scratch\laravel-test\routes\web.php");
-    let mut routes_bytes = fs::read(&scratch_routes).expect("Must read scratch web.php");
+    let fixture_routes = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/web.php");
+    let mut routes_bytes = fs::read(&fixture_routes).expect("Must read fixture web.php");
 
     // Modify by adding a custom route
     routes_bytes.extend_from_slice(b"\nRoute::get('/api/custom', fn() => 'custom');\n");
