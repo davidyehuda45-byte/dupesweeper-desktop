@@ -1,5 +1,26 @@
+<div align="center">
+
 # ⚡ DupeSweeper - Duplicate File Finder & Cleaner
 ### Version 6.0.0 — Cross-Platform Desktop Support (Windows, Linux, macOS)
+
+**Fast, Lightweight & Safe Multi-Platform Duplicate File Finder & System Cleaner**
+
+[![Bahasa Indonesia](https://img.shields.io/badge/Language-🇮🇩%20Bahasa%20Indonesia-blue?style=flat-square)](README.md)
+[![English](https://img.shields.io/badge/Language-🇺🇸%20English-lightgrey?style=flat-square)](docs/translations/README.en.md)
+[![简体中文](https://img.shields.io/badge/Language-🇨🇳%20简体中文-lightgrey?style=flat-square)](docs/translations/README.zh.md)
+[![हिन्दी](https://img.shields.io/badge/Language-🇮🇳%20हिन्दी-lightgrey?style=flat-square)](docs/translations/README.hi.md)
+
+<p align="center">
+  <b>🌍 Pilih Bahasa / Select Language:</b><br>
+  <a href="README.md">🇮🇩 <b>Bahasa Indonesia</b></a> •
+  <a href="docs/translations/README.en.md">🇺🇸 <b>English</b></a> •
+  <a href="docs/translations/README.zh.md">🇨🇳 <b>简体中文</b></a> •
+  <a href="docs/translations/README.hi.md">🇮🇳 <b>हिन्दी</b></a>
+</p>
+
+</div>
+
+---
 
 **DupeSweeper** adalah aplikasi desktop modern, super cepat, dan 100% offline yang mendukung **Windows, Linux, dan macOS**. DupeSweeper menggabungkan pencarian file duplikat berkecepatan tinggi dengan pembersihan sampah sistem dalam satu aplikasi yang ringkas:
 1. **🔍 Mode Duplicate Finder:** Mendeteksi dan membersihkan file duplikat berdasarkan **content hash** asli menggunakan algoritma kriptografi **BLAKE3**.
