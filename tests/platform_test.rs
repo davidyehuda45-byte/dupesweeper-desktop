@@ -85,3 +85,32 @@ fn test_macos_module_resolvers_do_not_panic() {
     println!("macOS Chrome: {:?}, Dev: {:?}, Apps: {:?}", mac_chrome, mac_dev, mac_apps);
 }
 
+#[test]
+fn test_installer_info_and_shortcut_creation() {
+    #[cfg(target_os = "windows")]
+    {
+        let info = dupesweeper::installer::get_install_info();
+        assert!(info.is_some(), "Windows install info must be resolvable");
+        let info = info.unwrap();
+        assert_eq!(info.app_name, "DupeSweeper");
+        assert_eq!(info.version, "6.0.0");
+        assert!(info.install_dir.to_string_lossy().contains("DupeSweeper"));
+        assert!(info.desktop_shortcut.to_string_lossy().ends_with("DupeSweeper.lnk"));
+        assert!(info.start_menu_shortcut.to_string_lossy().ends_with("DupeSweeper.lnk"));
+
+        // Test shortcut creation in temporary directory
+        let temp_dir = std::env::temp_dir();
+        let test_lnk = temp_dir.join(format!(
+            "test_dupesweeper_{}.lnk",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let ok = dupesweeper::installer::create_shortcut(&info.exe_path, &test_lnk, "DupeSweeper Test");
+        assert!(ok, "Shortcut creation via PowerShell WScript.Shell must succeed");
+        assert!(test_lnk.exists(), "Created shortcut file must exist on disk");
+        let _ = std::fs::remove_file(test_lnk);
+    }
+}
+
