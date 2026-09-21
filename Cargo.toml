@@ -1,0 +1,26 @@
+[package]
+name = "dupesweeper"
+version = "5.0.0"
+edition = "2021"
+authors = ["David Yehuda Surbakti"]
+description = "Fast, lightweight, 100% offline duplicate file finder and cleaner for Windows"
+
+[dependencies]
+eframe = "0.30"
+blake3 = { version = "1.5", features = ["rayon"] }
+rayon = "1.10"
+walkdir = "2.5"
+trash = "5.2"
+rfd = "0.15"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "bmp", "gif", "ico"] }
+chrono = "0.4"
+crossbeam-channel = "0.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
