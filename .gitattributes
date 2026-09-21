@@ -1,0 +1,4 @@
+# Preserve exact LF line endings across all platforms for consistent hash calculation
+* text=auto eol=lf
+tests/fixtures/* -text
+

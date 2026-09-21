@@ -683,7 +683,8 @@ fn test_end_to_end_template_fingerprint_scanner() {
     // Vite React react.svg content (Documentation template)
     // Hash: 679fc68d782e2ec79add7891c0181421808eecff388149ad3cd73e9bf41ab113
     let fixture_react_svg = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/react.svg");
-    let react_svg_bytes = fs::read(&fixture_react_svg).expect("Must read fixture react.svg");
+    let mut react_svg_bytes = fs::read(&fixture_react_svg).expect("Must read fixture react.svg");
+    react_svg_bytes.retain(|&b| b != b'\r');
 
     let svg1 = p1.join("react.svg");
     let svg2 = p2.join("react.svg");
@@ -692,7 +693,8 @@ fn test_end_to_end_template_fingerprint_scanner() {
 
     // Laravel routes/web.php content (Functional template)
     let fixture_routes = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/web.php");
-    let routes_bytes = fs::read(&fixture_routes).expect("Must read fixture web.php");
+    let mut routes_bytes = fs::read(&fixture_routes).expect("Must read fixture web.php");
+    routes_bytes.retain(|&b| b != b'\r');
 
     let r1 = p1.join("web.php");
     let r2 = p2.join("web.php");
@@ -747,6 +749,7 @@ fn test_modified_framework_file_no_longer_matches_template() {
 
     let fixture_routes = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/web.php");
     let mut routes_bytes = fs::read(&fixture_routes).expect("Must read fixture web.php");
+    routes_bytes.retain(|&b| b != b'\r');
 
     // Modify by adding a custom route
     routes_bytes.extend_from_slice(b"\nRoute::get('/api/custom', fn() => 'custom');\n");
