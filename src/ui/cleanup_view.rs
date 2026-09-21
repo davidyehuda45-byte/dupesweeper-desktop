@@ -10,10 +10,11 @@ use crate::cleanup::{
 };
 use crate::ui::components::{Badge, EmptyState, ModernProgressBar};
 use crate::ui::theme::{
-    format_bytes, COLOR_ACCENT_HOVER, COLOR_ACCENT_PRIMARY, COLOR_BORDER, COLOR_CARD_BG,
-    COLOR_DELETE_BG, COLOR_KEEP_BG, COLOR_KEEP_TEXT, COLOR_MUTED_TEXT, COLOR_PANEL_BG,
-    COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT, RADIUS_MD, RADIUS_SM, SPACE_LG, SPACE_MD,
-    SPACE_SM,
+    format_bytes, COLOR_ACCENT_HOVER, COLOR_ACCENT_PRIMARY, COLOR_BORDER, COLOR_BRAND_ACCENT,
+    COLOR_CARD_BG, COLOR_DELETE_BG, COLOR_DELETE_TEXT, COLOR_KEEP_BG, COLOR_KEEP_TEXT,
+    COLOR_MUTED_TEXT, COLOR_PANEL_BG, COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT,
+    COLOR_TEXT_PRIMARY, RADIUS_LG, RADIUS_MD, RADIUS_SM, SPACE_LG, SPACE_MD, SPACE_SM,
+    SPACE_XL, SPACE_XS,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -244,14 +245,14 @@ impl CleanupView {
 
     fn render_idle(state: &mut CleanupState, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
-            ui.add_space(SPACE_MD);
+            ui.add_space(SPACE_SM);
             ui.heading(
                 RichText::new("🧹 Bersihkan Sampah Sistem")
-                    .size(24.0)
-                    .color(Color32::WHITE)
+                    .size(26.0)
+                    .color(COLOR_TEXT_PRIMARY)
                     .strong(),
             );
-            ui.add_space(SPACE_SM);
+            ui.add_space(SPACE_XS);
             ui.label(
                 RichText::new(
                     "Pindai dan bersihkan file sementara, cache browser, thumbnail, log lama, dan cache aplikasi secara aman.",
@@ -260,27 +261,33 @@ impl CleanupView {
                 .size(13.0),
             );
 
-            ui.add_space(SPACE_MD * 1.5);
+            ui.add_space(SPACE_LG);
 
             let analyze_btn = ui.add_sized(
-                [280.0, 48.0],
+                [320.0, 48.0],
                 egui::Button::new(
                     RichText::new("🔍 Analisis Sampah Sekarang")
                         .size(16.0)
-                        .color(Color32::WHITE)
+                        .color(Color32::from_rgb(14, 16, 21))
                         .strong(),
                 )
-                .fill(COLOR_ACCENT_PRIMARY),
+                .fill(COLOR_BRAND_ACCENT)
+                .rounding(Rounding::same(RADIUS_MD)),
             );
 
             if analyze_btn.clicked() {
                 state.start_scan();
             }
 
-            ui.add_space(SPACE_MD * 1.5);
+            ui.add_space(SPACE_LG);
         });
 
-        ui.label(RichText::new("Kategori yang akan dianalisis:").strong().size(13.0));
+        ui.label(
+            RichText::new("Kategori yang Akan Dianalisis:")
+                .strong()
+                .size(14.0)
+                .color(COLOR_TEXT_PRIMARY),
+        );
         ui.add_space(SPACE_SM);
 
         egui::ScrollArea::vertical().show(ui, |ui| {
@@ -290,19 +297,29 @@ impl CleanupView {
                     .fill(COLOR_PANEL_BG)
                     .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
                     .rounding(Rounding::same(RADIUS_MD))
-                    .inner_margin(egui::Margin::symmetric(14.0, 10.0))
+                    .inner_margin(egui::Margin::symmetric(16.0, 12.0))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new(cat.icon).size(18.0));
+                            ui.label(RichText::new(cat.icon).size(20.0));
                             ui.vertical(|ui| {
                                 ui.horizontal(|ui| {
-                                    ui.label(RichText::new(cat.title).strong().size(13.0));
+                                    ui.label(
+                                        RichText::new(cat.title)
+                                            .strong()
+                                            .size(13.0)
+                                            .color(COLOR_TEXT_PRIMARY),
+                                    );
                                     match cat.safety {
                                         SafetyLevel::Safe => {
                                             Badge::show(ui, "Aman", COLOR_KEEP_BG, COLOR_KEEP_TEXT);
                                         }
                                         SafetyLevel::NeedsReview => {
-                                            Badge::show(ui, "⚠️ Perlu Review", COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT);
+                                            Badge::show(
+                                                ui,
+                                                "⚠️ Perlu Review",
+                                                COLOR_SENSITIVE_BG,
+                                                COLOR_SENSITIVE_TEXT,
+                                            );
                                         }
                                     }
                                 });
@@ -320,15 +337,36 @@ impl CleanupView {
 
     fn render_scanning(state: &CleanupState, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
-            ui.add_space(80.0);
-            ui.spinner();
-            ui.add_space(SPACE_MD);
-            ModernProgressBar::show(
-                ui,
-                state.scan_progress_ratio,
-                "Menganalisis Sampah Sistem...",
-                &state.scan_stage_name,
+            ui.add_space(SPACE_XL);
+            ui.heading(
+                RichText::new("Menganalisis Sampah Sistem...")
+                    .size(24.0)
+                    .color(COLOR_TEXT_PRIMARY)
+                    .strong(),
             );
+            ui.add_space(SPACE_XS);
+            ui.label(
+                RichText::new(&state.scan_stage_name)
+                    .color(COLOR_BRAND_ACCENT)
+                    .size(14.0)
+                    .strong(),
+            );
+            ui.add_space(SPACE_LG);
+
+            // Container Card for Scanning Progress
+            egui::Frame::none()
+                .fill(COLOR_PANEL_BG)
+                .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                .rounding(Rounding::same(RADIUS_LG))
+                .inner_margin(egui::Margin::symmetric(24.0, 20.0))
+                .show(ui, |ui| {
+                    ModernProgressBar::show(
+                        ui,
+                        state.scan_progress_ratio,
+                        &format!("{:.0}%", state.scan_progress_ratio * 100.0),
+                        &state.scan_stage_name,
+                    );
+                });
         });
     }
 
@@ -340,38 +378,74 @@ impl CleanupView {
         };
 
         ui.vertical_centered(|ui| {
-            ui.add_space(80.0);
-            ui.spinner();
-            ui.add_space(SPACE_MD);
-
-            let title = format!(
-                "Sedang Membersihkan Sampah Sistem... ({}/{})",
-                state.clean_current, state.clean_total
+            ui.add_space(SPACE_XL);
+            ui.heading(
+                RichText::new("Sedang Membersihkan Sampah Sistem...")
+                    .size(24.0)
+                    .color(COLOR_TEXT_PRIMARY)
+                    .strong(),
             );
-            let detail = format!(
-                "[{}] {} • Dibebaskan: {}",
-                state.clean_current_cat,
-                state.clean_current_item,
-                format_bytes(state.clean_bytes_freed)
-            );
+            ui.add_space(SPACE_XS);
 
-            ModernProgressBar::show(ui, ratio, &title, &detail);
-
-            ui.add_space(SPACE_MD * 1.5);
-
-            let cancel_btn = ui.add_sized(
-                [200.0, 40.0],
-                egui::Button::new(
-                    RichText::new("⏹ Batalkan Pembersihan")
-                        .color(Color32::WHITE)
-                        .strong(),
+            let is_cancelling = state.clean_cancel_flag.load(Ordering::Relaxed);
+            let status_text = if is_cancelling {
+                "Membatalkan pembersihan... menyelesaikan item saat ini.".to_string()
+            } else {
+                format!(
+                    "Memproses {} dari {} file ({})",
+                    state.clean_current,
+                    state.clean_total,
+                    state.clean_current_cat
                 )
-                .fill(COLOR_DELETE_BG),
-            );
+            };
 
-            if cancel_btn.clicked() {
-                state.clean_cancel_flag.store(true, Ordering::Relaxed);
-            }
+            ui.label(
+                RichText::new(status_text)
+                    .color(if is_cancelling { COLOR_DELETE_TEXT } else { COLOR_BRAND_ACCENT })
+                    .size(14.0)
+                    .strong(),
+            );
+            ui.add_space(SPACE_LG);
+
+            // Container Card for Cleaning Progress
+            egui::Frame::none()
+                .fill(COLOR_PANEL_BG)
+                .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                .rounding(Rounding::same(RADIUS_LG))
+                .inner_margin(egui::Margin::symmetric(24.0, 20.0))
+                .show(ui, |ui| {
+                    let detail = format!(
+                        "[{}] {} • Dibebaskan: {}",
+                        state.clean_current_cat,
+                        state.clean_current_item,
+                        format_bytes(state.clean_bytes_freed)
+                    );
+
+                    ModernProgressBar::show(
+                        ui,
+                        ratio,
+                        &format!("{:.0}%", ratio * 100.0),
+                        &detail,
+                    );
+                });
+
+            ui.add_space(SPACE_LG);
+            ui.add_enabled_ui(!is_cancelling, |ui| {
+                let cancel_btn = ui.add_sized(
+                    [200.0, 38.0],
+                    egui::Button::new(
+                        RichText::new(if is_cancelling { "Membatalkan..." } else { "⏹ Batalkan" })
+                            .color(Color32::WHITE)
+                            .strong(),
+                    )
+                    .fill(COLOR_DELETE_BG)
+                    .rounding(Rounding::same(RADIUS_MD)),
+                );
+
+                if cancel_btn.clicked() {
+                    state.clean_cancel_flag.store(true, Ordering::Relaxed);
+                }
+            });
         });
     }
 
@@ -617,68 +691,76 @@ impl CleanupView {
 
     fn render_completed(state: &mut CleanupState, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
-            ui.add_space(50.0);
+            ui.add_space(SPACE_XL);
             ui.label(RichText::new("🎉").size(48.0));
             ui.heading(
                 RichText::new("Pembersihan Selesai!")
-                    .size(24.0)
-                    .color(Color32::WHITE)
+                    .size(26.0)
+                    .color(Color32::from_rgb(34, 197, 94))
                     .strong(),
             );
-
-            if let Some(ref report) = state.last_report {
-                ui.add_space(SPACE_MD);
-                ui.label(
-                    RichText::new(format!(
-                        "Ruang disk dibebaskan: {}",
-                        format_bytes(report.bytes_freed)
-                    ))
-                    .size(18.0)
-                    .color(Color32::from_rgb(74, 222, 128))
-                    .strong(),
-                );
-
-                ui.add_space(SPACE_SM);
-                ui.label(
-                    RichText::new(format!(
-                        "Total file dibersihkan: {} • Dilewati/Locked: {}",
-                        report.successful_deleted, report.skipped_locked
-                    ))
-                    .color(COLOR_MUTED_TEXT)
-                    .size(13.0),
-                );
-
-                if report.skipped_locked > 0 {
-                    ui.add_space(4.0);
-                    ui.label(
-                        RichText::new(
-                            "ℹ File yang dilewati sedang aktif digunakan atau dikunci oleh Windows/aplikasi lain.",
-                        )
-                        .color(COLOR_ACCENT_HOVER)
-                        .size(11.0),
-                    );
-                }
-
-                ui.add_space(12.0);
-                ui.label(
-                    RichText::new(format!("Log audit disimpan di: {}", report.log_path.display()))
-                        .color(COLOR_MUTED_TEXT)
-                        .size(11.0)
-                        .monospace(),
-                );
-            }
-
             ui.add_space(SPACE_LG);
 
+            if let Some(ref report) = state.last_report {
+                egui::Frame::none()
+                    .fill(COLOR_PANEL_BG)
+                    .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                    .rounding(Rounding::same(RADIUS_LG))
+                    .inner_margin(egui::Margin::symmetric(28.0, 20.0))
+                    .show(ui, |ui| {
+                        ui.label(
+                            RichText::new(format!(
+                                "Ruang disk dibebaskan: {}",
+                                format_bytes(report.bytes_freed)
+                            ))
+                            .size(18.0)
+                            .color(Color32::from_rgb(74, 222, 128))
+                            .strong(),
+                        );
+
+                        ui.add_space(SPACE_SM);
+                        ui.label(
+                            RichText::new(format!(
+                                "Total file dibersihkan: {} • Dilewati/Locked: {}",
+                                report.successful_deleted, report.skipped_locked
+                            ))
+                            .color(COLOR_TEXT_PRIMARY)
+                            .size(13.0),
+                        );
+
+                        if report.skipped_locked > 0 {
+                            ui.add_space(SPACE_XS);
+                            ui.label(
+                                RichText::new(
+                                    "ℹ File yang dilewati sedang aktif digunakan atau dikunci oleh sistem/aplikasi lain.",
+                                )
+                                .color(COLOR_ACCENT_HOVER)
+                                .size(11.0),
+                            );
+                        }
+
+                        ui.add_space(SPACE_MD);
+                        ui.label(
+                            RichText::new(format!("Log audit disimpan di: {}", report.log_path.display()))
+                                .color(COLOR_MUTED_TEXT)
+                                .size(11.0)
+                                .monospace(),
+                        );
+                    });
+            }
+
+            ui.add_space(SPACE_XL);
+
             let ok_btn = ui.add_sized(
-                [220.0, 44.0],
+                [240.0, 44.0],
                 egui::Button::new(
                     RichText::new("Selesai & Analisis Ulang")
                         .size(14.0)
-                        .color(Color32::WHITE)
+                        .color(Color32::from_rgb(14, 16, 21))
                         .strong(),
                 )
-                .fill(COLOR_ACCENT_PRIMARY),
+                .fill(COLOR_BRAND_ACCENT)
+                .rounding(Rounding::same(RADIUS_MD)),
             );
 
             if ok_btn.clicked() {

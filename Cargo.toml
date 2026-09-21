@@ -1,9 +1,9 @@
 [package]
 name = "dupesweeper"
-version = "5.0.0"
+version = "6.0.0"
 edition = "2021"
 authors = ["David Yehuda Surbakti"]
-description = "Fast, lightweight, 100% offline duplicate file finder and cleaner for Windows"
+description = "Fast, lightweight, 100% offline duplicate file finder and cleaner for Windows, Linux, and macOS"
 
 [dependencies]
 eframe = "0.30"
@@ -17,6 +17,7 @@ chrono = "0.4"
 crossbeam-channel = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+dirs = "5.0"
 
 [profile.release]
 opt-level = 3

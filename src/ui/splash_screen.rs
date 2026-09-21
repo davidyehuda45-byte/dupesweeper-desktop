@@ -60,7 +60,7 @@ impl SplashScreen {
 
                 // Version & Subtitle
                 ui.label(
-                    RichText::new("v5.0.0 • 100% Offline High-Performance Storage Cleaner")
+                    RichText::new("v6.0.0 • 100% Offline Cross-Platform Storage Cleaner")
                         .size(13.0)
                         .color(COLOR_MUTED_TEXT),
                 );

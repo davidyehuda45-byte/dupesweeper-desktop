@@ -8,16 +8,20 @@ use std::time::Instant;
 
 use crate::actions::{ActionKind, ActionReport, DeleteProgressEvent, DeleteWorker};
 use crate::scanner::{
-    DuplicateGroup, ScanProgress, Scanner, SelectionStrategy, TemplateCategory, WalkerConfig,
+    DuplicateGroup, FileItem, ScanProgress, Scanner, SelectionStrategy, TemplateCategory,
+    TemplateFingerprint, WalkerConfig,
 };
 use crate::ui::cleanup_view::{CleanupState, CleanupView};
 use crate::ui::components::{Badge, EmptyState, ModernProgressBar};
 use crate::ui::splash_screen::SplashScreen;
 use crate::ui::theme::{
-    file_extension_category, format_bytes, format_system_time, setup_custom_theme,
-    COLOR_ACCENT_HOVER, COLOR_ACCENT_PRIMARY, COLOR_BG_DARK, COLOR_BORDER, COLOR_CARD_BG,
-    COLOR_DELETE_BG, COLOR_DELETE_TEXT, COLOR_KEEP_BG, COLOR_KEEP_TEXT, COLOR_MUTED_TEXT,
-    COLOR_PANEL_BG, COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT,
+    file_extension_category, format_bytes, format_system_time, paint_dashed_rect,
+    setup_custom_theme, COLOR_ACCENT_HOVER, COLOR_ACCENT_PRIMARY, COLOR_BG_DARK, COLOR_BORDER,
+    COLOR_BORDER_SUBTLE, COLOR_BRAND_ACCENT, COLOR_BRAND_HOVER, COLOR_CARD_BG, COLOR_CARD_HOVER,
+    COLOR_DELETE_BG, COLOR_DELETE_TEXT, COLOR_DISABLED_BG,
+    COLOR_DISABLED_BORDER, COLOR_DISABLED_TEXT, COLOR_KEEP_BG, COLOR_KEEP_TEXT, COLOR_MUTED_TEXT,
+    COLOR_PANEL_BG, COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT, COLOR_TEXT_PRIMARY, RADIUS_LG,
+    RADIUS_MD, RADIUS_SM, SPACE_LG, SPACE_MD, SPACE_SM, SPACE_XL, SPACE_XS,
 };
 use crate::ui::thumbnail::ThumbnailCache;
 
@@ -102,6 +106,11 @@ pub struct DupeSweeperApp {
 
     // Thumbnail cache with background worker
     thumb_cache: ThumbnailCache,
+
+    // Automation fields for visual verification
+    auto_screenshot: bool,
+    screenshot_step: usize,
+    screenshot_name: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -156,6 +165,10 @@ impl Default for DupeSweeperApp {
 
             last_report: None,
             thumb_cache: ThumbnailCache::new(),
+
+            auto_screenshot: std::env::var("DUPESWEEPER_AUTO_SCREENSHOT").is_ok(),
+            screenshot_step: 0,
+            screenshot_name: None,
         }
     }
 }
@@ -219,31 +232,11 @@ impl DupeSweeperApp {
     }
 
     fn open_in_explorer(path: &Path) {
-        #[cfg(target_os = "windows")]
-        {
-            let _ = std::process::Command::new("explorer")
-                .arg(format!("/select,{}", path.display()))
-                .spawn();
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            if let Some(parent) = path.parent() {
-                let _ = std::process::Command::new("xdg-open").arg(parent).spawn();
-            }
-        }
+        crate::platform::open_in_file_manager(path);
     }
 
     fn open_file(path: &Path) {
-        #[cfg(target_os = "windows")]
-        {
-            let _ = std::process::Command::new("cmd")
-                .args(["/c", "start", "", &path.to_string_lossy()])
-                .spawn();
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            let _ = std::process::Command::new("xdg-open").arg(path).spawn();
-        }
+        crate::platform::open_file(path);
     }
 
     fn apply_global_strategy(&mut self, strategy: SelectionStrategy) {
@@ -322,8 +315,193 @@ impl DupeSweeperApp {
     }
 }
 
+fn save_screenshot_image(image: &egui::ColorImage, filename: &str) {
+    let out_dir = PathBuf::from(r"C:\Users\Admin\.gemini\antigravity\brain\3421f6fe-4f97-435a-92a3-a58ffaa100fc");
+    let file_path = out_dir.join(filename);
+    let width = image.width() as u32;
+    let height = image.height() as u32;
+    let mut rgba = Vec::with_capacity((width * height * 4) as usize);
+    for pixel in &image.pixels {
+        rgba.push(pixel.r());
+        rgba.push(pixel.g());
+        rgba.push(pixel.b());
+        rgba.push(pixel.a());
+    }
+    if let Some(buf) = image::RgbaImage::from_raw(width, height, rgba) {
+        let _ = buf.save(&file_path);
+        eprintln!("Saved screenshot: {}", file_path.display());
+    }
+}
+
+fn create_sample_duplicate_groups() -> Vec<DuplicateGroup> {
+    vec![
+        DuplicateGroup {
+            hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string(),
+            file_size: 4_850_000,
+            files: vec![
+                FileItem {
+                    path: PathBuf::from(r"C:\Projects\ClientPortal_Web\assets\hero_banner.png"),
+                    size: 4_850_000,
+                    created: None,
+                    modified: Some(std::time::SystemTime::now()),
+                    is_selected: false,
+                    is_recommended_keep: true,
+                    is_sensitive: false,
+                    template_match: None,
+                },
+                FileItem {
+                    path: PathBuf::from(r"D:\Backups\2026_Archive\hero_banner_copy.png"),
+                    size: 4_850_000,
+                    created: None,
+                    modified: Some(std::time::SystemTime::now()),
+                    is_selected: true,
+                    is_recommended_keep: false,
+                    is_sensitive: false,
+                    template_match: None,
+                },
+            ],
+        },
+        DuplicateGroup {
+            hash: "a4f89d38c71b69201f6543b593ef33a1e941f17374b868e8e7c10b77b7524021".to_string(),
+            file_size: 1_280,
+            files: vec![
+                FileItem {
+                    path: PathBuf::from(r"C:\Projects\ClientPortal_Web\.env.production"),
+                    size: 1_280,
+                    created: None,
+                    modified: Some(std::time::SystemTime::now()),
+                    is_selected: false,
+                    is_recommended_keep: false,
+                    is_sensitive: true,
+                    template_match: None,
+                },
+                FileItem {
+                    path: PathBuf::from(r"D:\Backups\2026_Archive\.env.backup"),
+                    size: 1_280,
+                    created: None,
+                    modified: Some(std::time::SystemTime::now()),
+                    is_selected: false,
+                    is_recommended_keep: false,
+                    is_sensitive: true,
+                    template_match: None,
+                },
+            ],
+        },
+        DuplicateGroup {
+            hash: "123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0".to_string(),
+            file_size: 4_512,
+            files: vec![
+                FileItem {
+                    path: PathBuf::from(r"C:\Projects\ClientPortal_Web\README.md"),
+                    size: 4_512,
+                    created: None,
+                    modified: Some(std::time::SystemTime::now()),
+                    is_selected: true,
+                    is_recommended_keep: false,
+                    is_sensitive: false,
+                    template_match: Some(TemplateFingerprint {
+                        name: "Laravel 11 README".to_string(),
+                        framework: "Laravel".to_string(),
+                        category: TemplateCategory::Documentation,
+                        hash: "123456789abcdef0".to_string(),
+                    }),
+                },
+                FileItem {
+                    path: PathBuf::from(r"D:\Backups\2026_Archive\Laravel_README.md"),
+                    size: 4_512,
+                    created: None,
+                    modified: Some(std::time::SystemTime::now()),
+                    is_selected: true,
+                    is_recommended_keep: false,
+                    is_sensitive: false,
+                    template_match: Some(TemplateFingerprint {
+                        name: "Laravel 11 README".to_string(),
+                        framework: "Laravel".to_string(),
+                        category: TemplateCategory::Documentation,
+                        hash: "123456789abcdef0".to_string(),
+                    }),
+                },
+            ],
+        },
+    ]
+}
+
 impl eframe::App for DupeSweeperApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Automation for visual verification screenshots
+        if self.auto_screenshot {
+            if self.screen == AppScreen::Splash {
+                self.screen = AppScreen::Setup;
+            }
+
+            ctx.input(|i| {
+                for event in &i.raw.events {
+                    if let egui::Event::Screenshot { image, .. } = event {
+                        if let Some(name) = self.screenshot_name.take() {
+                            save_screenshot_image(image, &name);
+                        }
+                    }
+                }
+            });
+
+            self.screenshot_step += 1;
+            match self.screenshot_step {
+                2 => {
+                    self.screen = AppScreen::Setup;
+                    self.roots.clear();
+                    self.screenshot_name = Some("screen_01_setup_empty.png".to_string());
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                }
+                5 => {
+                    self.screen = AppScreen::Setup;
+                    self.roots = vec![
+                        PathBuf::from(r"C:\Projects\ClientPortal_Web"),
+                        PathBuf::from(r"D:\Backups\2026_Archive"),
+                    ];
+                    self.screenshot_name = Some("screen_02_setup_populated.png".to_string());
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                }
+                8 => {
+                    self.screen = AppScreen::Scanning;
+                    self.scan_stage_name = "Tahap 3: Deep BLAKE3 Streaming Hash (100% Exact Match)...".to_string();
+                    self.scan_file_detail = r"D:\Backups\2026_Archive\dataset_video_render.mp4".to_string();
+                    self.scan_items_stat = "1,840 / 2,450 file terverifikasi".to_string();
+                    self.scan_bytes_stat = "4.65 GB / 6.20 GB diproses".to_string();
+                    self.scan_progress_ratio = 0.72;
+                    self.screenshot_name = Some("screen_03_scanning.png".to_string());
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                }
+                11 => {
+                    self.screen = AppScreen::Results;
+                    self.total_files_scanned = 2450;
+                    self.folders_skipped = 18;
+                    self.groups = create_sample_duplicate_groups();
+                    self.expanded_groups.insert(0);
+                    self.expanded_groups.insert(1);
+                    self.expanded_groups.insert(2);
+                    self.screenshot_name = Some("screen_04_results_duplicate.png".to_string());
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                }
+                14 => {
+                    self.mode = AppMode::GeneralCleanup;
+                    self.cleanup_state.screen = CleanupScreen::Idle;
+                    self.screenshot_name = Some("screen_05_cleanup_setup.png".to_string());
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                }
+                17 => {
+                    self.mode = AppMode::GeneralCleanup;
+                    self.cleanup_state.screen = CleanupScreen::Results;
+                    self.screenshot_name = Some("screen_06_cleanup_results.png".to_string());
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
+                }
+                20 => {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                _ => {}
+            }
+            ctx.request_repaint();
+        }
+
         // Render splash screen if in splash state
         if self.screen == AppScreen::Splash {
             if self.splash.is_finished() {
@@ -485,35 +663,81 @@ impl eframe::App for DupeSweeperApp {
 
         // Top Navigation Bar
         egui::TopBottomPanel::top("top_header")
-            .frame(egui::Frame::none().fill(COLOR_PANEL_BG).inner_margin(16.0))
+            .frame(
+                egui::Frame::none()
+                    .fill(COLOR_PANEL_BG)
+                    .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                    .inner_margin(egui::Margin::symmetric(24.0, 14.0)),
+            )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.heading(
+                    ui.label(
                         RichText::new("⚡ DupeSweeper")
-                            .color(Color32::WHITE)
+                            .color(COLOR_BRAND_ACCENT)
                             .size(20.0)
                             .strong(),
                     );
+                    ui.add_space(SPACE_XS);
                     ui.label(
-                        RichText::new("v5.0.0 • 100% Offline")
+                        RichText::new("v6.0.0 • 100% Offline")
                             .color(COLOR_MUTED_TEXT)
-                            .size(13.0),
+                            .size(12.0),
                     );
 
-                    ui.add_space(20.0);
+                    ui.add_space(SPACE_LG);
 
                     // Mode switch tabs
-                    let dup_tab = ui.selectable_label(
-                        self.mode == AppMode::DuplicateFinder,
-                        RichText::new("🔍 Cari File Duplikat").strong().size(13.0),
+                    let is_dup = self.mode == AppMode::DuplicateFinder;
+                    let dup_tab = ui.add(
+                        egui::Button::new(
+                            RichText::new("🔍 Cari File Duplikat")
+                                .color(if is_dup {
+                                    COLOR_BRAND_ACCENT
+                                } else {
+                                    COLOR_MUTED_TEXT
+                                })
+                                .strong()
+                                .size(13.0),
+                        )
+                        .fill(if is_dup {
+                            COLOR_CARD_BG
+                        } else {
+                            Color32::TRANSPARENT
+                        })
+                        .stroke(if is_dup {
+                            Stroke::new(1.0_f32, COLOR_BORDER)
+                        } else {
+                            Stroke::NONE
+                        })
+                        .rounding(Rounding::same(RADIUS_MD)),
                     );
                     if dup_tab.clicked() {
                         self.mode = AppMode::DuplicateFinder;
                     }
 
-                    let clean_tab = ui.selectable_label(
-                        self.mode == AppMode::GeneralCleanup,
-                        RichText::new("🧹 Bersihkan Sampah Sistem").strong().size(13.0),
+                    let is_clean = self.mode == AppMode::GeneralCleanup;
+                    let clean_tab = ui.add(
+                        egui::Button::new(
+                            RichText::new("🧹 Bersihkan Sampah Sistem")
+                                .color(if is_clean {
+                                    COLOR_BRAND_ACCENT
+                                } else {
+                                    COLOR_MUTED_TEXT
+                                })
+                                .strong()
+                                .size(13.0),
+                        )
+                        .fill(if is_clean {
+                            COLOR_CARD_BG
+                        } else {
+                            Color32::TRANSPARENT
+                        })
+                        .stroke(if is_clean {
+                            Stroke::new(1.0_f32, COLOR_BORDER)
+                        } else {
+                            Stroke::NONE
+                        })
+                        .rounding(Rounding::same(RADIUS_MD)),
                     );
                     if clean_tab.clicked() {
                         self.mode = AppMode::GeneralCleanup;
@@ -522,7 +746,17 @@ impl eframe::App for DupeSweeperApp {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if self.mode == AppMode::DuplicateFinder && self.screen == AppScreen::Results {
                             if ui
-                                .button(RichText::new("🔄 Scan Baru").color(Color32::WHITE))
+                                .add(
+                                    egui::Button::new(
+                                        RichText::new("🔄 Scan Baru")
+                                            .color(COLOR_TEXT_PRIMARY)
+                                            .strong()
+                                            .size(12.0),
+                                    )
+                                    .fill(COLOR_CARD_BG)
+                                    .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                                    .rounding(Rounding::same(RADIUS_SM)),
+                                )
                                 .clicked()
                             {
                                 self.screen = AppScreen::Setup;
@@ -535,9 +769,9 @@ impl eframe::App for DupeSweeperApp {
                 });
             });
 
-        // Main Central View
+        // Main Central View with Level 0 deepest dark background
         egui::CentralPanel::default()
-            .frame(egui::Frame::none().fill(COLOR_CARD_BG).inner_margin(20.0))
+            .frame(egui::Frame::none().fill(COLOR_BG_DARK).inner_margin(24.0))
             .show(ctx, |ui| match self.mode {
                 AppMode::DuplicateFinder => match self.screen {
                     AppScreen::Splash => {}
@@ -563,226 +797,410 @@ impl eframe::App for DupeSweeperApp {
 // Screen Implementations
 // ----------------------------------------------------------------------------
 impl DupeSweeperApp {
-    fn render_setup_view(&mut self, _ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn render_setup_view(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
-            ui.add_space(10.0);
+            ui.add_space(SPACE_SM);
             ui.heading(
                 RichText::new("Cari & Bersihkan File Duplikat")
-                    .size(24.0)
+                    .size(26.0)
+                    .color(COLOR_TEXT_PRIMARY)
                     .strong(),
             );
+            ui.add_space(SPACE_XS);
             ui.label(
                 RichText::new(
-                    "Pilih satu atau beberapa folder/drive untuk di-scan secara mendalam dengan BLAKE3.",
+                    "Pindai drive atau folder untuk mendeteksi file duplikat berdasarkan hash BLAKE3 secara akurat dan aman.",
                 )
-                .color(COLOR_MUTED_TEXT),
+                .color(COLOR_MUTED_TEXT)
+                .size(13.0),
             );
-            ui.add_space(16.0);
+            ui.add_space(SPACE_MD);
         });
 
-        // Drop Zone Card
-        egui::Frame::none()
-            .fill(COLOR_PANEL_BG)
-            .stroke(Stroke::new(1.5_f32, COLOR_BORDER))
-            .rounding(Rounding::same(8.0))
-            .inner_margin(24.0)
-            .show(ui, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.label(
-                        RichText::new("📁 Drag & drop folder ke sini, atau klik tombol di bawah")
-                            .size(16.0)
-                            .color(Color32::WHITE),
-                    );
-                    ui.add_space(8.0);
+        // --------------------------------------------------------------------
+        // 1. Drop Zone Card (Interactive Dashed Border + Drag-Over Feedback)
+        // --------------------------------------------------------------------
+        let is_window_drag = ctx.input(|i| !i.raw.hovered_files.is_empty());
+        let drop_height = 145.0;
 
-                    ui.horizontal(|ui| {
-                        ui.add_space((ui.available_width() - 260.0) / 2.0);
-                        if ui
-                            .add_sized(
-                                [260.0, 36.0],
-                                egui::Button::new(
-                                    RichText::new("➕ Pilih Folder / Drive...")
-                                        .color(Color32::WHITE)
-                                        .strong(),
-                                )
-                                .fill(COLOR_ACCENT_PRIMARY),
-                            )
-                            .clicked()
-                        {
-                            if let Some(folder) = rfd::FileDialog::new().pick_folder() {
-                                if !self.roots.contains(&folder) {
-                                    self.roots.push(folder);
-                                }
-                            }
-                        }
-                    });
-                });
-            });
-
-        ui.add_space(16.0);
-
-        // Selected Roots List
-        ui.label(
-            RichText::new(format!("Folder yang akan di-scan ({})", self.roots.len()))
-                .strong()
-                .size(14.0),
+        let (drop_rect, drop_response) = ui.allocate_exact_size(
+            Vec2::new(ui.available_width(), drop_height),
+            egui::Sense::hover(),
         );
-        ui.add_space(4.0);
 
-        if self.roots.is_empty() {
-            ui.label(
-                RichText::new("Belum ada folder dipilih. Tambahkan minimal 1 folder untuk memulai.")
-                    .color(COLOR_MUTED_TEXT)
-                    .italics(),
-            );
+        let is_drop_active = drop_response.hovered() || is_window_drag;
+
+        // Background fill with slight amber glow on hover/drag
+        let bg_fill = if is_drop_active {
+            COLOR_CARD_HOVER
         } else {
-            egui::ScrollArea::vertical()
-                .max_height(140.0)
-                .show(ui, |ui| {
-                    let mut remove_idx = None;
-                    for (i, root) in self.roots.iter().enumerate() {
-                        ui.horizontal(|ui| {
-                            ui.label("📁");
-                            ui.label(RichText::new(root.display().to_string()).strong());
-                            if ui.small_button("✕ Hapus").clicked() {
-                                remove_idx = Some(i);
-                            }
-                        });
-                    }
-                    if let Some(idx) = remove_idx {
-                        self.roots.remove(idx);
-                    }
-                });
+            COLOR_PANEL_BG
+        };
+        ui.painter().rect_filled(drop_rect, Rounding::same(RADIUS_LG), bg_fill);
+
+        if is_drop_active {
+            ui.painter().rect_filled(
+                drop_rect,
+                Rounding::same(RADIUS_LG),
+                Color32::from_rgba_unmultiplied(245, 158, 11, 24),
+            );
         }
 
-        ui.add_space(16.0);
+        // Dashed border in brand accent color
+        let border_stroke = if is_drop_active {
+            Stroke::new(2.0_f32, COLOR_BRAND_HOVER)
+        } else {
+            Stroke::new(1.5_f32, COLOR_BRAND_ACCENT)
+        };
+        paint_dashed_rect(ui.painter(), drop_rect, border_stroke, 10.0, 6.0);
 
-        // Scan All Toggle
+        // Content inside Drop Zone
+        ui.allocate_new_ui(egui::UiBuilder::new().max_rect(drop_rect), |ui| {
+            ui.vertical_centered(|ui| {
+                ui.add_space(SPACE_MD);
+                ui.label(
+                    RichText::new("📂")
+                        .size(36.0)
+                        .color(COLOR_BRAND_ACCENT),
+                );
+                ui.add_space(SPACE_XS);
+                ui.label(
+                    RichText::new(if is_drop_active {
+                        "Lepaskan folder di sini untuk menambahkan ke antrean scan!"
+                    } else {
+                        "Tarik & Lepas (Drag & Drop) folder ke sini"
+                    })
+                    .size(15.0)
+                    .color(if is_drop_active {
+                        COLOR_BRAND_HOVER
+                    } else {
+                        COLOR_TEXT_PRIMARY
+                    })
+                    .strong(),
+                );
+                ui.label(
+                    RichText::new("atau gunakan tombol di bawah untuk memilih dari File Explorer")
+                        .color(COLOR_MUTED_TEXT)
+                        .size(12.0),
+                );
+                ui.add_space(SPACE_SM);
+
+                let pick_btn = ui.add_sized(
+                    [240.0, 36.0],
+                    egui::Button::new(
+                        RichText::new("📁 Pilih Folder / Drive...")
+                            .color(Color32::WHITE)
+                            .strong()
+                            .size(13.0),
+                    )
+                    .fill(COLOR_ACCENT_PRIMARY)
+                    .rounding(Rounding::same(RADIUS_MD)),
+                );
+
+                if pick_btn.clicked() {
+                    if let Some(folder) = rfd::FileDialog::new().pick_folder() {
+                        if !self.roots.contains(&folder) {
+                            self.roots.push(folder);
+                        }
+                    }
+                }
+            });
+        });
+
+        ui.add_space(SPACE_MD);
+
+        // --------------------------------------------------------------------
+        // 2. Folder List Card
+        // --------------------------------------------------------------------
         egui::Frame::none()
             .fill(COLOR_PANEL_BG)
             .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
-            .rounding(Rounding::same(6.0))
-            .inner_margin(12.0)
+            .rounding(Rounding::same(RADIUS_MD))
+            .inner_margin(egui::Margin::symmetric(16.0, 14.0))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(format!("📁 Folder yang Akan Di-scan ({})", self.roots.len()))
+                            .strong()
+                            .size(14.0)
+                            .color(COLOR_TEXT_PRIMARY),
+                    );
+
+                    if !self.roots.is_empty() {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui
+                                .add(
+                                    egui::Button::new(
+                                        RichText::new("Kosongkan Semua")
+                                            .size(11.0)
+                                            .color(COLOR_DELETE_TEXT),
+                                    )
+                                    .fill(COLOR_DELETE_BG)
+                                    .rounding(Rounding::same(RADIUS_SM)),
+                                )
+                                .clicked()
+                            {
+                                self.roots.clear();
+                            }
+                        });
+                    }
+                });
+
+                ui.add_space(SPACE_SM);
+
+                if self.roots.is_empty() {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(SPACE_SM);
+                        ui.label(RichText::new("📁").size(24.0).color(COLOR_MUTED_TEXT));
+                        ui.add_space(SPACE_XS);
+                        ui.label(
+                            RichText::new("Belum ada folder yang dipilih.")
+                                .color(COLOR_MUTED_TEXT)
+                                .size(13.0),
+                        );
+                        ui.label(
+                            RichText::new("Tarik folder ke area di atas atau klik tombol Pilih Folder untuk memulai.")
+                                .color(COLOR_MUTED_TEXT)
+                                .size(11.0),
+                        );
+                        ui.add_space(SPACE_SM);
+                    });
+                } else {
+                    egui::ScrollArea::vertical()
+                        .max_height(130.0)
+                        .show(ui, |ui| {
+                            ui.spacing_mut().item_spacing = Vec2::new(SPACE_SM, SPACE_XS);
+                            let mut remove_idx = None;
+                            for (i, root) in self.roots.iter().enumerate() {
+                                egui::Frame::none()
+                                    .fill(COLOR_CARD_BG)
+                                    .stroke(Stroke::new(1.0_f32, COLOR_BORDER_SUBTLE))
+                                    .rounding(Rounding::same(RADIUS_SM))
+                                    .inner_margin(egui::Margin::symmetric(10.0, 6.0))
+                                    .show(ui, |ui| {
+                                        ui.horizontal(|ui| {
+                                            ui.label(
+                                                RichText::new(format!("{}.", i + 1))
+                                                    .size(11.0)
+                                                    .color(COLOR_MUTED_TEXT),
+                                            );
+                                            ui.label(RichText::new("📁").size(13.0));
+                                            ui.label(
+                                                RichText::new(root.display().to_string())
+                                                    .strong()
+                                                    .size(12.0)
+                                                    .color(COLOR_TEXT_PRIMARY),
+                                            );
+                                            ui.with_layout(
+                                                egui::Layout::right_to_left(egui::Align::Center),
+                                                |ui| {
+                                                    if ui
+                                                        .add(
+                                                            egui::Button::new(
+                                                                RichText::new("✕ Hapus")
+                                                                    .size(11.0)
+                                                                    .color(COLOR_MUTED_TEXT),
+                                                            )
+                                                            .fill(Color32::TRANSPARENT)
+                                                            .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                                                            .rounding(Rounding::same(RADIUS_SM)),
+                                                        )
+                                                        .clicked()
+                                                    {
+                                                        remove_idx = Some(i);
+                                                    }
+                                                },
+                                            );
+                                        });
+                                    });
+                            }
+                            if let Some(idx) = remove_idx {
+                                self.roots.remove(idx);
+                            }
+                        });
+                }
+            });
+
+        ui.add_space(SPACE_MD);
+
+        // --------------------------------------------------------------------
+        // 3. Scan Options & Advanced Settings Card
+        // --------------------------------------------------------------------
+        egui::Frame::none()
+            .fill(COLOR_PANEL_BG)
+            .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+            .rounding(Rounding::same(RADIUS_MD))
+            .inner_margin(egui::Margin::symmetric(16.0, 14.0))
             .show(ui, |ui| {
                 ui.checkbox(
                     &mut self.scan_all_folders,
-                    RichText::new("Scan semua folder (termasuk dependency node_modules/vendor/target — untuk audit disk)").color(Color32::WHITE),
+                    RichText::new("Scan semua folder (termasuk dependency node_modules/vendor/target)")
+                        .color(COLOR_TEXT_PRIMARY)
+                        .strong()
+                        .size(13.0),
                 );
                 ui.label(
-                    RichText::new("Secara default, folder dependency/build otomatis di-skip untuk kecepatan & proteksi file project.")
+                    RichText::new("Secara default, folder dependency & build otomatis dilewati untuk performa optimal dan perlindungan file project.")
                         .color(COLOR_MUTED_TEXT)
                         .size(11.0),
                 );
-            });
 
-        ui.add_space(10.0);
+                ui.add_space(SPACE_SM);
 
-        // Advanced Settings Collapsible
-        ui.collapsing("⚙ Pengaturan Scan Tambahan (Opsional)", |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Ukuran File Minimum (KB):");
-                ui.add(egui::DragValue::new(&mut self.min_size_kb).range(0..=1_000_000));
-                ui.label(
-                    RichText::new("(File lebih kecil dari ini akan dilewati)")
-                        .color(COLOR_MUTED_TEXT),
+                ui.collapsing(
+                    RichText::new("⚙ Pengaturan Scan Tambahan (Opsional)")
+                        .strong()
+                        .color(COLOR_MUTED_TEXT)
+                        .size(12.0),
+                    |ui| {
+                        ui.add_space(SPACE_XS);
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("Ukuran File Minimum:").size(12.0));
+                            ui.add(
+                                egui::DragValue::new(&mut self.min_size_kb)
+                                    .range(0..=1_000_000)
+                                    .suffix(" KB"),
+                            );
+                            ui.label(
+                                RichText::new("(File lebih kecil dari ini akan dilewati)")
+                                    .color(COLOR_MUTED_TEXT)
+                                    .size(11.0),
+                            );
+                        });
+
+                        ui.add_space(SPACE_XS);
+                        ui.checkbox(
+                            &mut self.include_hidden,
+                            RichText::new("Scan file/folder tersembunyi (hidden)").size(12.0),
+                        );
+
+                        ui.add_space(SPACE_XS);
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("Abaikan Ekstensi:").size(12.0));
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.exclude_exts_input)
+                                    .desired_width(180.0)
+                                    .hint_text("tmp, bak, log"),
+                            );
+                            ui.label(
+                                RichText::new("(Pisahkan dengan tanda koma)")
+                                    .color(COLOR_MUTED_TEXT)
+                                    .size(11.0),
+                            );
+                        });
+                    },
                 );
             });
 
-            ui.add_space(6.0);
-            ui.checkbox(&mut self.include_hidden, "Scan file/folder tersembunyi (hidden)");
+        ui.add_space(SPACE_LG);
 
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                ui.label("Abaikan Ekstensi (pisahkan dengan koma):");
-                ui.text_edit_singleline(&mut self.exclude_exts_input);
-                ui.label(RichText::new("Contoh: tmp, bak, log").color(COLOR_MUTED_TEXT));
-            });
-        });
-
-        ui.add_space(20.0);
-
-        // Big Start Scan Button
+        // --------------------------------------------------------------------
+        // 4. Primary CTA: Start Duplicate Scan Button
+        // --------------------------------------------------------------------
         ui.vertical_centered(|ui| {
             let can_scan = !self.roots.is_empty();
-            ui.add_enabled_ui(can_scan, |ui| {
+            if can_scan {
                 let btn = ui.add_sized(
-                    [320.0, 48.0],
+                    [340.0, 48.0],
                     egui::Button::new(
                         RichText::new("🚀 Mulai Scan Duplikat")
                             .size(16.0)
-                            .color(Color32::WHITE)
+                            .color(Color32::from_rgb(14, 16, 21))
                             .strong(),
                     )
-                    .fill(if can_scan {
-                        COLOR_ACCENT_PRIMARY
-                    } else {
-                        Color32::from_rgb(60, 65, 80)
-                    }),
+                    .fill(COLOR_BRAND_ACCENT)
+                    .rounding(Rounding::same(RADIUS_MD)),
                 );
 
                 if btn.clicked() {
                     self.start_scan();
                 }
-            });
+            } else {
+                ui.add_sized(
+                    [340.0, 48.0],
+                    egui::Button::new(
+                        RichText::new("🚀 Mulai Scan Duplikat")
+                            .size(16.0)
+                            .color(COLOR_DISABLED_TEXT)
+                            .strong(),
+                    )
+                    .fill(COLOR_DISABLED_BG)
+                    .stroke(Stroke::new(1.0_f32, COLOR_DISABLED_BORDER))
+                    .rounding(Rounding::same(RADIUS_MD)),
+                );
+            }
         });
     }
 
     fn render_scanning_view(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
-            ui.add_space(40.0);
+            ui.add_space(SPACE_XL);
             ui.heading(
                 RichText::new("Sedang Memindai File Duplikat...")
                     .size(24.0)
+                    .color(COLOR_TEXT_PRIMARY)
                     .strong(),
             );
-            ui.add_space(8.0);
+            ui.add_space(SPACE_XS);
             ui.label(
                 RichText::new(&self.scan_stage_name)
-                    .color(Color32::WHITE)
-                    .size(15.0),
+                    .color(COLOR_BRAND_ACCENT)
+                    .size(14.0)
+                    .strong(),
             );
-            ui.add_space(20.0);
+            ui.add_space(SPACE_LG);
 
-            // Modern Progress Bar
-            let sub_text = if !self.scan_bytes_stat.is_empty() {
-                format!("{} • {}", self.scan_items_stat, self.scan_bytes_stat)
-            } else {
-                self.scan_items_stat.clone()
-            };
+            // Container Card for Scanning Progress
+            egui::Frame::none()
+                .fill(COLOR_PANEL_BG)
+                .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                .rounding(Rounding::same(RADIUS_LG))
+                .inner_margin(egui::Margin::symmetric(24.0, 20.0))
+                .show(ui, |ui| {
+                    let sub_text = if !self.scan_bytes_stat.is_empty() {
+                        format!("{} • {}", self.scan_items_stat, self.scan_bytes_stat)
+                    } else {
+                        self.scan_items_stat.clone()
+                    };
 
-            ModernProgressBar::show(
-                ui,
-                self.scan_progress_ratio,
-                &format!("{:.0}%", self.scan_progress_ratio * 100.0),
-                &sub_text,
-            );
+                    ModernProgressBar::show(
+                        ui,
+                        self.scan_progress_ratio,
+                        &format!("{:.0}%", self.scan_progress_ratio * 100.0),
+                        &sub_text,
+                    );
 
-            ui.add_space(14.0);
-            ui.label(
-                RichText::new(format!("File saat ini: {}", self.scan_file_detail))
-                    .color(COLOR_MUTED_TEXT)
-                    .size(12.0),
-            );
+                    ui.add_space(SPACE_MD);
+                    ui.label(
+                        RichText::new(format!("File saat ini: {}", self.scan_file_detail))
+                            .color(COLOR_MUTED_TEXT)
+                            .size(12.0),
+                    );
 
-            if let Some(start) = self.scan_start_instant {
-                ui.add_space(6.0);
-                ui.label(
-                    RichText::new(format!("Waktu berjalan: {:.1} detik", start.elapsed().as_secs_f32()))
-                        .color(COLOR_MUTED_TEXT)
-                        .size(12.0),
-                );
-            }
+                    if let Some(start) = self.scan_start_instant {
+                        ui.add_space(SPACE_XS);
+                        ui.label(
+                            RichText::new(format!(
+                                "Waktu berjalan: {:.1} detik",
+                                start.elapsed().as_secs_f32()
+                            ))
+                            .color(COLOR_MUTED_TEXT)
+                            .size(12.0),
+                        );
+                    }
+                });
 
-            ui.add_space(30.0);
+            ui.add_space(SPACE_LG);
             if ui
                 .add_sized(
-                    [200.0, 36.0],
+                    [200.0, 38.0],
                     egui::Button::new(
                         RichText::new("⏹ Batalkan Scan")
                             .color(Color32::WHITE)
                             .strong(),
                     )
-                    .fill(COLOR_DELETE_BG),
+                    .fill(COLOR_DELETE_BG)
+                    .rounding(Rounding::same(RADIUS_MD)),
                 )
                 .clicked()
             {
@@ -793,13 +1211,14 @@ impl DupeSweeperApp {
 
     fn render_deleting_view(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
-            ui.add_space(40.0);
+            ui.add_space(SPACE_XL);
             ui.heading(
                 RichText::new("Sedang Membersihkan File Duplikat...")
                     .size(24.0)
+                    .color(COLOR_TEXT_PRIMARY)
                     .strong(),
             );
-            ui.add_space(8.0);
+            ui.add_space(SPACE_XS);
 
             let progress_ratio = if self.delete_total > 0 {
                 (self.delete_current as f32 / self.delete_total as f32).clamp(0.0, 1.0)
@@ -816,36 +1235,46 @@ impl DupeSweeperApp {
 
             ui.label(
                 RichText::new(status_text)
-                    .color(Color32::WHITE)
-                    .size(15.0),
+                    .color(if is_cancelling { COLOR_DELETE_TEXT } else { COLOR_BRAND_ACCENT })
+                    .size(14.0)
+                    .strong(),
             );
-            ui.add_space(20.0);
+            ui.add_space(SPACE_LG);
 
-            ModernProgressBar::show(
-                ui,
-                progress_ratio,
-                &format!("{:.0}%", progress_ratio * 100.0),
-                &format!("Ruang dibebaskan: {}", format_bytes(self.delete_bytes_freed)),
-            );
+            // Container Card for Deletion Progress
+            egui::Frame::none()
+                .fill(COLOR_PANEL_BG)
+                .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                .rounding(Rounding::same(RADIUS_LG))
+                .inner_margin(egui::Margin::symmetric(24.0, 20.0))
+                .show(ui, |ui| {
+                    ModernProgressBar::show(
+                        ui,
+                        progress_ratio,
+                        &format!("{:.0}%", progress_ratio * 100.0),
+                        &format!("Ruang dibebaskan: {}", format_bytes(self.delete_bytes_freed)),
+                    );
 
-            ui.add_space(14.0);
-            ui.label(
-                RichText::new(format!("File saat ini: {}", self.delete_current_file))
-                    .color(COLOR_MUTED_TEXT)
-                    .size(12.0),
-            );
+                    ui.add_space(SPACE_MD);
+                    ui.label(
+                        RichText::new(format!("File saat ini: {}", self.delete_current_file))
+                            .color(COLOR_MUTED_TEXT)
+                            .size(12.0),
+                    );
+                });
 
-            ui.add_space(30.0);
+            ui.add_space(SPACE_LG);
             ui.add_enabled_ui(!is_cancelling, |ui| {
                 if ui
                     .add_sized(
-                        [200.0, 36.0],
+                        [200.0, 38.0],
                         egui::Button::new(
                             RichText::new(if is_cancelling { "Membatalkan..." } else { "⏹ Batalkan" })
                                 .color(Color32::WHITE)
                                 .strong(),
                         )
-                        .fill(COLOR_DELETE_BG),
+                        .fill(COLOR_DELETE_BG)
+                        .rounding(Rounding::same(RADIUS_MD)),
                     )
                     .clicked()
                 {
@@ -987,69 +1416,76 @@ impl DupeSweeperApp {
             })
             .collect();
 
-        ui.horizontal(|ui| {
-            ui.label(RichText::new("Seleksi:").strong());
+        egui::Frame::none()
+            .fill(COLOR_PANEL_BG)
+            .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+            .rounding(Rounding::same(RADIUS_MD))
+            .inner_margin(egui::Margin::symmetric(14.0, 8.0))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Seleksi:").strong().color(COLOR_TEXT_PRIMARY));
 
-            if ui
-                .selectable_label(
-                    self.current_strategy == SelectionStrategy::KeepOldest,
-                    "Simpan Terlama",
-                )
-                .clicked()
-            {
-                self.apply_global_strategy(SelectionStrategy::KeepOldest);
-            }
+                    if ui
+                        .selectable_label(
+                            self.current_strategy == SelectionStrategy::KeepOldest,
+                            "Simpan Terlama",
+                        )
+                        .clicked()
+                    {
+                        self.apply_global_strategy(SelectionStrategy::KeepOldest);
+                    }
 
-            if ui
-                .selectable_label(
-                    self.current_strategy == SelectionStrategy::KeepNewest,
-                    "Simpan Terbaru",
-                )
-                .clicked()
-            {
-                self.apply_global_strategy(SelectionStrategy::KeepNewest);
-            }
+                    if ui
+                        .selectable_label(
+                            self.current_strategy == SelectionStrategy::KeepNewest,
+                            "Simpan Terbaru",
+                        )
+                        .clicked()
+                    {
+                        self.apply_global_strategy(SelectionStrategy::KeepNewest);
+                    }
 
-            if ui
-                .selectable_label(
-                    self.current_strategy == SelectionStrategy::KeepShortestPath,
-                    "Simpan Path Terpendek",
-                )
-                .clicked()
-            {
-                self.apply_global_strategy(SelectionStrategy::KeepShortestPath);
-            }
+                    if ui
+                        .selectable_label(
+                            self.current_strategy == SelectionStrategy::KeepShortestPath,
+                            "Simpan Path Terpendek",
+                        )
+                        .clicked()
+                    {
+                        self.apply_global_strategy(SelectionStrategy::KeepShortestPath);
+                    }
 
-            ui.separator();
+                    ui.separator();
 
-            if ui.small_button("Pilih Semua").clicked() {
-                self.select_all_duplicates();
-            }
+                    if ui.small_button("Pilih Semua").clicked() {
+                        self.select_all_duplicates();
+                    }
 
-            if ui.small_button("Hapus Centang").clicked() {
-                self.deselect_all_files();
-            }
+                    if ui.small_button("Hapus Centang").clicked() {
+                        self.deselect_all_files();
+                    }
 
-            ui.separator();
+                    ui.separator();
 
-            // Collapse / Expand All controls
-            if ui.small_button("▶ Buka Semua").clicked() {
-                for &idx in &matching_indices {
-                    self.expanded_groups.insert(idx);
-                }
-            }
+                    // Collapse / Expand All controls
+                    if ui.small_button("▶ Buka Semua").clicked() {
+                        for &idx in &matching_indices {
+                            self.expanded_groups.insert(idx);
+                        }
+                    }
 
-            if ui.small_button("▼ Tutup Semua").clicked() {
-                self.expanded_groups.clear();
-            }
+                    if ui.small_button("▼ Tutup Semua").clicked() {
+                        self.expanded_groups.clear();
+                    }
 
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.filter_query)
-                        .hint_text("🔍 Cari nama file..."),
-                );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.filter_query)
+                                .hint_text("🔍 Cari nama file..."),
+                        );
+                    });
+                });
             });
-        });
 
         ui.add_space(8.0);
 
@@ -1468,68 +1904,87 @@ impl DupeSweeperApp {
 
     fn render_completed_view(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
-            ui.add_space(40.0);
+            ui.add_space(SPACE_XL);
             ui.heading(
                 RichText::new("✨ Pembersihan Selesai!")
-                    .size(24.0)
+                    .size(26.0)
                     .color(Color32::from_rgb(34, 197, 94))
                     .strong(),
             );
-            ui.add_space(12.0);
+            ui.add_space(SPACE_LG);
 
             if let Some(ref report) = self.last_report {
-                ui.label(
-                    RichText::new(format!(
-                        "Berhasil membersihkan {} file, menghemat {}.",
-                        report.successful,
-                        format_bytes(report.bytes_freed)
-                    ))
-                    .size(16.0)
-                    .color(Color32::WHITE),
-                );
+                egui::Frame::none()
+                    .fill(COLOR_PANEL_BG)
+                    .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                    .rounding(Rounding::same(RADIUS_LG))
+                    .inner_margin(egui::Margin::symmetric(28.0, 20.0))
+                    .show(ui, |ui| {
+                        ui.label(
+                            RichText::new(format!(
+                                "Berhasil membersihkan {} file, menghemat {}.",
+                                report.successful,
+                                format_bytes(report.bytes_freed)
+                            ))
+                            .size(16.0)
+                            .color(COLOR_TEXT_PRIMARY)
+                            .strong(),
+                        );
 
-                if report.failed > 0 {
-                    ui.add_space(6.0);
-                    ui.label(
-                        RichText::new(format!(
-                            "Gagal diproses: {} file (mungkin terkunci oleh aplikasi lain).",
-                            report.failed
-                        ))
-                        .color(COLOR_DELETE_TEXT),
-                    );
-                }
+                        if report.failed > 0 {
+                            ui.add_space(SPACE_XS);
+                            ui.label(
+                                RichText::new(format!(
+                                    "Gagal diproses: {} file (mungkin terkunci oleh aplikasi lain).",
+                                    report.failed
+                                ))
+                                .color(COLOR_DELETE_TEXT)
+                                .size(13.0),
+                            );
+                        }
 
-                ui.add_space(16.0);
-                ui.label(
-                    RichText::new(format!("Log sesi tersimpan di: {}", report.log_path.display()))
-                        .color(COLOR_MUTED_TEXT)
-                        .size(12.0),
-                );
+                        ui.add_space(SPACE_MD);
+                        ui.label(
+                            RichText::new(format!("Log sesi tersimpan di: {}", report.log_path.display()))
+                                .color(COLOR_MUTED_TEXT)
+                                .size(12.0),
+                        );
 
-                ui.add_space(12.0);
-                if ui
-                    .add_sized(
-                        [220.0, 36.0],
-                        egui::Button::new(
-                            RichText::new("📄 Buka File Log")
-                                .color(Color32::WHITE)
-                                .strong(),
-                        ),
-                    )
-                    .clicked()
-                {
-                    Self::open_file(&report.log_path);
-                }
+                        ui.add_space(SPACE_MD);
+                        if ui
+                            .add_sized(
+                                [220.0, 36.0],
+                                egui::Button::new(
+                                    RichText::new("📄 Buka File Log")
+                                        .color(COLOR_TEXT_PRIMARY)
+                                        .strong(),
+                                )
+                                .fill(COLOR_CARD_BG)
+                                .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                                .rounding(Rounding::same(RADIUS_MD)),
+                            )
+                            .clicked()
+                        {
+                            Self::open_file(&report.log_path);
+                        }
+                    });
             }
 
-            ui.add_space(30.0);
+            ui.add_space(SPACE_XL);
             ui.horizontal(|ui| {
-                ui.add_space((ui.available_width() - 360.0) / 2.0);
+                ui.add_space((ui.available_width() - 380.0) / 2.0);
 
                 if ui
                     .add_sized(
-                        [170.0, 40.0],
-                        egui::Button::new("Lihat Sisa Duplikat"),
+                        [180.0, 42.0],
+                        egui::Button::new(
+                            RichText::new("Lihat Sisa Duplikat")
+                                .color(COLOR_TEXT_PRIMARY)
+                                .strong(),
+                        )
+                        .fill(COLOR_PANEL_BG)
+                        .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                        .rounding(Rounding::same(RADIUS_MD)),
                     )
                     .clicked()
                 {
@@ -1538,13 +1993,14 @@ impl DupeSweeperApp {
 
                 if ui
                     .add_sized(
-                        [170.0, 40.0],
+                        [180.0, 42.0],
                         egui::Button::new(
                             RichText::new("🔄 Scan Folder Baru")
-                                .color(Color32::WHITE)
+                                .color(Color32::from_rgb(14, 16, 21))
                                 .strong(),
                         )
-                        .fill(COLOR_ACCENT_PRIMARY),
+                        .fill(COLOR_BRAND_ACCENT)
+                        .rounding(Rounding::same(RADIUS_MD)),
                     )
                     .clicked()
                 {

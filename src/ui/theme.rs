@@ -49,6 +49,40 @@ pub const COLOR_SENSITIVE_TEXT: Color32 = Color32::from_rgb(254, 240, 138);// Li
 pub const COLOR_TEXT_PRIMARY: Color32 = Color32::from_rgb(249, 250, 251); // High Contrast White (#F9FAFB)
 pub const COLOR_MUTED_TEXT: Color32 = Color32::from_rgb(156, 163, 175);   // Secondary Muted Gray (#9CA3AF)
 
+pub const COLOR_DISABLED_BG: Color32 = Color32::from_rgb(26, 30, 40);    // Disabled button/card fill (#1A1E28)
+pub const COLOR_DISABLED_TEXT: Color32 = Color32::from_rgb(100, 110, 128); // Muted disabled text (#646E80)
+pub const COLOR_DISABLED_BORDER: Color32 = Color32::from_rgb(40, 47, 62); // Subtle disabled outline
+
+pub fn paint_dashed_rect(
+    painter: &egui::Painter,
+    rect: egui::Rect,
+    stroke: Stroke,
+    dash_len: f32,
+    gap_len: f32,
+) {
+    let corners = [
+        (rect.left_top(), rect.right_top()),
+        (rect.right_top(), rect.right_bottom()),
+        (rect.right_bottom(), rect.left_bottom()),
+        (rect.left_bottom(), rect.left_top()),
+    ];
+
+    for (p1, p2) in corners {
+        let dir = p2 - p1;
+        let len = dir.length();
+        if len <= 0.0 {
+            continue;
+        }
+        let unit = dir / len;
+        let mut curr = 0.0;
+        while curr < len {
+            let seg_end = (curr + dash_len).min(len);
+            painter.line_segment([p1 + unit * curr, p1 + unit * seg_end], stroke);
+            curr += dash_len + gap_len;
+        }
+    }
+}
+
 pub fn setup_custom_theme(ctx: &egui::Context) {
     let mut style = (*ctx.style()).clone();
 

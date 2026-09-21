@@ -1,26 +1,42 @@
 # ⚡ DupeSweeper - Duplicate File Finder & Cleaner
-### Version 5.0.0 — Background Bulk Deletion + UI/UX Overhaul + General Cleanup
+### Version 6.0.0 — Cross-Platform Desktop Support (Windows, Linux, macOS)
 
-**DupeSweeper** adalah aplikasi desktop modern, super cepat, dan 100% offline untuk Windows yang menggabungkan solusi pencarian file duplikat berkecepatan tinggi dengan pembersihan sampah sistem dalam satu aplikasi:
-1. **🔍 Mode Duplicate Finder:** Mendeteksi dan membersihkan file duplikat berdasarkan **content hash** asli menggunakan algoritma **BLAKE3**.
+**DupeSweeper** adalah aplikasi desktop modern, super cepat, dan 100% offline yang mendukung **Windows, Linux, dan macOS**. DupeSweeper menggabungkan pencarian file duplikat berkecepatan tinggi dengan pembersihan sampah sistem dalam satu aplikasi yang ringkas:
+1. **🔍 Mode Duplicate Finder:** Mendeteksi dan membersihkan file duplikat berdasarkan **content hash** asli menggunakan algoritma kriptografi **BLAKE3**.
 2. **🧹 Mode General Cleanup:** Mendeteksi dan membersihkan file sampah sistem & aplikasi umum (file sementara, cache browser, thumbnail, log lama, installer lama di Downloads, dan cache developer/consumer tools).
 
-Aplikasi ini dikompilasi menjadi **single binary `.exe` mandiri berukuran sangat ringkas (< 5 MB)** tanpa dependensi runtime tambahan, tanpa instalasi rumit, tanpa iklan, dan **0 byte data dikirim ke cloud**.
+Aplikasi ini dikompilasi menjadi **single binary mandiri berukuran sangat ringkas (< 5 MB)** tanpa dependensi runtime tambahan, tanpa instalasi rumit, tanpa iklan, dan **0 byte data dikirim ke cloud**.
 
 ---
 
-## 🚀 Fitur Baru di v5.0.0
+## 🌐 Fitur Baru di v6.0.0: Dukungan Cross-Platform Penuh
 
-### 1. Fix UI Freeze saat Bulk Delete (Asynchronous Background Worker)
-- **Eliminasi UI Freeze:** Pemindahan operasi penghapusan file (`trash::delete`, `fs::remove_file`, isolasi karantina) dari thread UI utama ke background worker thread terpisah menggunakan `crossbeam-channel`.
-- **Dedicated Progress Screen:** Tampilan antarmuka khusus saat pembersihan berjalan yang menampilkan progress bar real-time, nama file yang sedang diproses, dan akumulasi ruang penyimpanan yang berhasil dibebaskan.
-- **Dukungan Pembatalan (Cancellation Support):** Pengguna dapat membatalkan proses pembersihan kapan saja dengan aman via atomic flag (`Arc<AtomicBool>`). Pembersihan berhenti dengan rapi tanpa merusak state aplikasi maupun integritas file sistem.
+### 1. Arsitektur Abstraksi Platform (`src/platform/`)
+- **Single Source Codebase:** Logika inti duplikasi dan GUI immediate mode 100% portabel. Perbedaan sistem operasi diisolasi secara rapi di dalam layer `src/platform/`:
+  - `src/platform/windows.rs`: Win32 Shell32 Recycle Bin query & empty, Windows %TEMP% / %LOCALAPPDATA% path resolvers, Windows Explorer selection.
+  - `src/platform/linux.rs`: Freedesktop.org Trash Specification (`~/.local/share/Trash`), standard `/tmp`, `/var/tmp`, `~/.cache` resolvers, dan `xdg-open`.
+  - `src/platform/macos.rs`: Finder Trash (`~/.Trash`), `~/Library/Caches`, `~/Library/Application Support`, QuickLook thumbnail cache, dan `open -R`.
+- **Crate `dirs` Integration:** Menggantikan semua pembacaan environment variable hardcoded Windows dengan resolver path standar cross-platform (`dirs::cache_dir()`, `dirs::config_dir()`, `dirs::download_dir()`, `dirs::home_dir()`).
 
-### 2. UI/UX Overhaul & Modern Design System
-- **⚡ Startup Splash Screen:** Layar pembuka elegan selama ~650ms dengan animasi pulsing logo petir (`⚡`), indikator loading ramping, dan transisi mulus ke landing screen.
-- **📊 Modern Progress Bar Component (`ModernProgressBar`):** Komponen progress bar modern dengan fill animasi, persentase kontras tinggi, dan detail informasi dinamis.
-- **🎉 Empty State Visuals (`EmptyState`):** Tampilan visual yang ramah dan jelas saat hasil scan 0 item (misal: drive bersih dari duplikat).
-- **🎨 Elevated Dark Theme & 8px Grid:** Sistem desain konsisten berbasis kelipatan 8px, sudut rounded yang serasi, palet multi-level elevation (`#0E1015`, `#161922`, `#1E232F`, `#282F3E`), dan aksen amber hangat (`#F59E0B`).
+### 2. Matriks Path General Cleanup per Platform
+
+| Kategori | Windows | Linux | macOS |
+|---|---|---|---|
+| **Temp Files** | `%TEMP%`, `C:\Windows\Temp` | `/tmp`, `/var/tmp` | `/private/var/folders`, `/tmp`, `~/Library/Caches` |
+| **Cache Browser Chrome** | `%LOCALAPPDATA%\Google\Chrome\User Data\Default\Cache` | `~/.cache/google-chrome/Default/Cache` | `~/Library/Caches/Google/Chrome/Default/Cache` |
+| **Cache Browser Firefox** | `%APPDATA%\Mozilla\Firefox\Profiles\*\cache2` | `~/.cache/mozilla/firefox/*/cache2` | `~/Library/Caches/Firefox/Profiles/*/cache2` |
+| **Thumbnail Cache** | `thumbcache_*.db` (Explorer) | `~/.cache/thumbnails` | `~/Library/Caches/com.apple.QuickLook.thumbnailcache` |
+| **Recycle Bin / Trash** | Windows Recycle Bin (Win32 Shell32) | `~/.local/share/Trash` (Freedesktop) | `~/.Trash` (Finder) |
+| **Installer di Downloads** | `*.exe`, `*.msi` | `*.deb`, `*.rpm`, `*.appimage`, `*.tar.gz` | `*.dmg`, `*.pkg` |
+| **npm cache** | `%APPDATA%\npm-cache` | `~/.npm` | `~/.npm` |
+| **pip cache** | `%LOCALAPPDATA%\pip\Cache` | `~/.cache/pip` | `~/Library/Caches/pip` |
+| **VS Code cache** | `%APPDATA%\Code\Cache` | `~/.config/Code/Cache` | `~/Library/Application Support/Code/Cache` |
+| **Cargo registry cache** | `~/.cargo/registry/cache` | `~/.cargo/registry/cache` | `~/.cargo/registry/cache` |
+| **Aplikasi Umum** | Discord, Spotify | Discord, Spotify | Discord, Spotify |
+
+### 3. CI/CD Multi-Platform Otomatis
+- Disediakan file konfigurasi GitHub Actions workflow: `.github/workflows/ci.yml`.
+- Otomatis melakukan `cargo test` dan `cargo build --release` serentak di `windows-latest`, `ubuntu-latest`, dan `macos-latest` setiap push/pull request.
 
 ---
 
@@ -30,7 +46,7 @@ Mode terpisah yang dapat dipilih langsung dari header atas melalui tab navigasi:
 
 ### Kategori File Sampah yang Dibersihkan:
 
-1. **📁 Temporary Files (`%TEMP%`, `%LOCALAPPDATA%\Temp`, `C:\Windows\Temp`):**
+1. **📁 Temporary Files:**
    - File sementara (*.tmp, *.temp) sisa installer atau crash aplikasi.
    - *Status:* **Aman (Default Tercentang)**.
 2. **🌐 Cache Browser (Chrome, Edge, Firefox):**
@@ -38,17 +54,16 @@ Mode terpisah yang dapat dipilih langsung dari header atas melalui tab navigasi:
    - **Prinsip Keamanan Absolut:** **TIDAK PERNAH menyentuh Cookies, Login Data, Riwayat (History), maupun Bookmarks!**
    - *Status:* **Aman (Default Tercentang)**.
 3. **📜 Log Files & Crash Dump Lama (> 30 Hari):**
-   - File log error (*.log), crash dump (*.dmp), dan Windows Error Reporting (`%LOCALAPPDATA%\Microsoft\Windows\WER`).
+   - File log error (*.log), crash dump (*.dmp), dan laporan error sistem lama.
    - *Status:* **Aman (Default Tercentang)**.
-4. **🖼️ Thumbnail Cache Windows:**
-   - File cache `thumbcache_*.db` dan `Thumbs.db`.
-   - Aman dihapus karena Windows akan membuat ulang secara otomatis saat dibutuhkan.
+4. **🖼️ Thumbnail Cache:**
+   - Database cache pratinjau thumbnail file manager. Sistem operasi akan meregenerasi otomatis saat dibutuhkan.
    - *Status:* **Aman (Default Tercentang)**.
-5. **🗑️ Isi Recycle Bin:**
-   - Membaca kapasitas total seluruh drive via Win32 Shell32 native API dan opsi mengosongkan dengan konfirmasi.
+5. **🗑️ Isi Recycle Bin / Trash:**
+   - Membaca kapasitas total seluruh drive dan opsi mengosongkan dengan konfirmasi.
    - *Status:* **Aman (Default Tercentang)**.
 6. **💿 Installer & Setup Lama di Downloads (> 60 Hari):**
-   - File installer (*.exe, *.msi) di folder Downloads yang sudah berumur lebih dari 60 hari.
+   - File installer (*.exe, *.msi, *.deb, *.rpm, *.AppImage, *.dmg, *.pkg) di folder Downloads yang sudah berumur lebih dari 60 hari.
    - **Prinsip Keamanan:** **Default TIDAK TERCENTANG (OFF)** untuk mencegah file yang masih dibutuhkan terhapus tanpa sengaja.
    - *Status:* **Perlu Review (Manual Select)**.
 7. **🛠️ Cache Developer Tools (npm, pip, VS Code, Cargo):**
@@ -60,7 +75,7 @@ Mode terpisah yang dapat dipilih langsung dari header atas melalui tab navigasi:
    - *Status:* **Aman (Default Tercentang)**.
 
 ### Fitur Keamanan General Cleanup:
-- **Graceful Error Handling:** File yang sedang dikunci (*locked*) atau sedang dipakai oleh Windows/aplikasi lain otomatis dilewati (*skipped*) tanpa crash/panic.
+- **Graceful Error Handling:** File yang sedang dikunci (*locked*) atau sedang dipakai oleh aplikasi lain otomatis dilewati (*skipped*) tanpa crash/panic.
 - **Dry-Run Size Calculation:** Menghitung estimasi kapasitas yang bisa dibebaskan sebelum pengguna menekan tombol bersihkan.
 - **Detail Drawer:** Setiap kartu kategori dapat di-*expand* untuk melihat daftar file spesifik di dalamnya.
 - **Audit Logging:** Seluruh aktivitas pembersihan dicatat ke file log audit (`logs/dupesweeper_audit_*.txt`).
@@ -85,8 +100,10 @@ DupeSweeper dilengkapi sistem cerdas untuk membedakan file starter template bawa
 
 ## ⚡ Fitur Performa Ekstrem
 
+- **Background Bulk Deletion (`DeleteWorker`):**
+  - Penghapusan file dilakukan di background thread terpisah menggunakan non-blocking crossbeam channel. Bebas dari freeze/not responding.
+  - Dilengkapi tombol **"Batalkan"** yang menghentikan proses pembersihan kapan saja dengan aman via atomic flag.
 - **Virtualized / Lazy Scrolling (`show_rows`):**
-  - Mengatasi kendala lag pada hasil scan berskala masif (puluhan hingga ratusan ribu file).
   - Hanya merender baris yang tepat berada di dalam viewport layar. Scroll tetap **60 FPS halus tanpa lag** pada dataset **100.000+ file**!
 - **Collapsed by Default:**
   - Grup duplikat tampil ringkas secara default (*collapsed*). Tersedia tombol **"▶ Buka Semua"** dan **"▼ Tutup Semua"**.
@@ -99,7 +116,7 @@ DupeSweeper dilengkapi sistem cerdas untuk membedakan file starter template bawa
 
 | Kategori | Nama | Contoh | Perilaku Scan | Perilaku Seleksi | Badge UI |
 |---|---|---|---|---|---|
-| **A** | Excluded Directories | `node_modules`, `vendor`, `target`, `.git`, `.next` | Di-skip total | N/A | N/A |
+| **A** | Excluded Directories | `node_modules`, `vendor`, `target`, `.git`, `.next`, `DerivedData`, `.cache` | Di-skip total | N/A | N/A |
 | **B** | Protected Sensitive Files | `.env`, `*.key`, `*.pem`, `secrets.json`, SSH keys | Tetap di-scan & dideteksi | **Default unchecked**, kebal auto-select | `⚠️ Sensitif` |
 | **C** | Template Dokumentasi | `README.md`, `.gitignore`, `welcome.blade.php`, `react.svg` | Di-scan & dicocokkan BLAKE3 | **Auto-suggested** untuk dibersihkan | `🗑️ Template Default ([Framework])` |
 | **D** | Template Fungsional | Migrasi Laravel, `DatabaseSeeder.php`, `page.tsx`, `vite.config.js` | Di-scan & dicocokkan BLAKE3 | **Default unchecked**, kebal auto-select | `📋 Bawaan [Framework] (Belum Dimodifikasi)` |
@@ -107,29 +124,52 @@ DupeSweeper dilengkapi sistem cerdas untuk membedakan file starter template bawa
 
 ---
 
-## 🚀 Cara Menjalankan
+## 🚀 Cara Menjalankan & Build per Platform
 
-### Opsi 1: Menjalankan Binary Langsung (Paling Mudah)
-Cukup double-click file executable di root folder:
-```text
-dupesweeper.exe
-```
-*(Ukuran hanya ~4.7 MB, langsung jalan tanpa instalasi apapun)*
-
-### Opsi 2: Compile & Run dari Source Code (Rust)
-```bash
-# Jalankan langsung dalam mode release
+### 🪟 Windows
+```powershell
+# Jalankan langsung dari source:
 cargo run --release
 
-# Atau jalankan test suite (22 automated unit & integration tests)
-cargo test
+# Build standalone .exe:
+cargo build --release
+# File binary siap pakai di target/release/dupesweeper.exe (~4.7 MB)
+```
+
+### 🐧 Linux
+```bash
+# Install dependensi GUI dasar (Ubuntu/Debian):
+sudo apt-get install -y libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libasound2-dev
+
+# Jalankan langsung:
+cargo run --release
+
+# Build binary standalone:
+cargo build --release
+
+# Opsional: Package sebagai .AppImage portabel
+cargo install cargo-appimage
+cargo appimage
+```
+
+### 🍎 macOS
+```bash
+# Jalankan langsung:
+cargo run --release
+
+# Build binary standalone:
+cargo build --release
+
+# Opsional: Package sebagai bundle .app / .dmg
+cargo install cargo-bundle
+cargo bundle --release
 ```
 
 ---
 
 ## 🧪 Hasil Pengujian (Automated Tests)
 
-Test suite mencakup seluruh skenario Duplicate Finder, General Cleanup, dan Background Deletion:
+Test suite mencakup seluruh skenario Duplicate Finder, General Cleanup, Background Deletion, dan Cross-Platform Resolution:
 1. `test_hasher_partial_and_full`: Verifikasi partial vs full hash integrity.
 2. `test_end_to_end_scanner_detection`: Verifikasi scanner multi-folder end-to-end.
 3. `test_selection_strategies`: Validasi Keep Oldest, Keep Newest, Keep Shortest Path.
@@ -148,9 +188,16 @@ Test suite mencakup seluruh skenario Duplicate Finder, General Cleanup, dan Back
 16. `test_installer_category_default_unchecked`: Kategori installer Downloads default tidak tercentang (SafetyLevel::NeedsReview).
 17. `test_safe_categories_default_checked`: Kategori aman (temp, browser cache, logs, thumbnail, recycle bin, dev tools, apps) default tercentang (SafetyLevel::Safe).
 18. `test_size_calculation_matches_actual_deletion`: Estimasi ukuran pra-pembersihan persis sama dengan ukuran yang dibebaskan setelah pembersihan.
-19. `test_recycle_bin_query`: Query status Recycle Bin Windows berjalan sukses via Win32 Shell32 API.
+19. `test_recycle_bin_query`: Query status Recycle Bin / Trash berjalan sukses via native API.
 20. `test_delete_worker_background_execution`: Verifikasi eksekusi penghapusan di background thread tanpa memblokir UI thread (< 50ms return).
 21. `test_delete_worker_cancellation`: Verifikasi fitur pembatalan delete massal secara aman menggunakan atomic flag.
 22. `test_cleanup_executor_cancellation`: Verifikasi fitur pembatalan pembersihan sistem general cleanup.
+23. `test_platform_temp_dirs_valid`: Verifikasi ketersediaan direktori temporary lintas platform.
+24. `test_platform_downloads_installer_patterns`: Verifikasi pattern installer (.exe/.msi di Windows, .deb/.rpm/.appimage di Linux, .dmg/.pkg di macOS).
+25. `test_platform_dev_tools_cache_dirs`: Verifikasi resolver direktori cache developer tools (npm, pip, VS Code, Cargo).
+26. `test_platform_consumer_apps_cache_dirs`: Verifikasi resolver direktori cache Discord dan Spotify.
+27. `test_platform_recycle_bin_query`: Verifikasi query ukuran dan item Recycle Bin / Trash.
+28. `test_linux_module_resolvers_do_not_panic`: Verifikasi path resolver Linux berjalan tanpa panic.
+29. `test_macos_module_resolvers_do_not_panic`: Verifikasi path resolver macOS berjalan tanpa panic.
 
-Semua 22 test lulus (**100% OK**).
+Semua 29 test lulus (**100% OK**).
