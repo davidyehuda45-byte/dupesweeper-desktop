@@ -36,7 +36,8 @@ DupeSweeper is distributed as a **portable standalone** desktop executable. You 
 
 | Operating System | Desktop Binary (Click to Download) | Size | How to Run |
 |---|---|:---:|---|
-| **🪟 Windows (x64)** | [⬇️ **dupesweeper-windows-x86_64.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-windows-x86_64.exe) | ~5.0 MB | Download & **double-click** the `.exe`. Starts immediately! |
+| **🪟 Windows (Installer)** | [⬇️ **DupeSweeper-Setup.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/DupeSweeper-Setup.exe) | ~5.0 MB | **Recommended.** Download & install. Automatically creates clean **"DupeSweeper"** shortcuts on Desktop & Start Menu (no `.exe`). |
+| **🪟 Windows (Portable)** | [⬇️ **DupeSweeper.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/DupeSweeper.exe) | ~5.0 MB | Standalone portable executable. Download & double-click to run directly. |
 | **🐧 Linux (x64)** | [⬇️ **dupesweeper-linux-x86_64**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-linux-x86_64) | ~11.3 MB | `chmod +x dupesweeper-linux-x86_64` then `./dupesweeper-linux-x86_64` |
 | **🍎 macOS (Universal)** | [⬇️ **dupesweeper-macos-universal**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-macos-universal) | ~4.5 MB | `chmod +x dupesweeper-macos-universal` then `./dupesweeper-macos-universal` |
 
@@ -46,7 +47,7 @@ DupeSweeper is distributed as a **portable standalone** desktop executable. You 
 
 ### 🛡️ Windows SmartScreen & Antivirus Security Note
 
-When downloading and launching `dupesweeper-windows-x86_64.exe` for the first time, Windows Defender / SmartScreen may present a blue prompt:
+When downloading and launching `DupeSweeper-Setup.exe` or `DupeSweeper.exe` for the first time, Windows Defender / SmartScreen may present a blue prompt:
 > **"Windows protected your PC"**  
 > *Microsoft Defender SmartScreen prevented an unrecognized app from starting.*
 
@@ -144,3 +145,4 @@ All 29 automated unit & integration tests pass with 100% success:
 ```bash
 cargo test
 ```
+

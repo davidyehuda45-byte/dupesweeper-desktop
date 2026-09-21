@@ -9,6 +9,7 @@ use crate::cleanup::{
     CleanupProgressEvent, CleanupScanner, SafetyLevel, CLEANUP_CATEGORIES,
 };
 use crate::ui::components::{Badge, EmptyState, ModernProgressBar};
+use crate::ui::icons::{render_icon, render_icon_circle, IconKind};
 use crate::ui::theme::{
     format_bytes, COLOR_ACCENT_HOVER, COLOR_ACCENT_PRIMARY, COLOR_BORDER, COLOR_BRAND_ACCENT,
     COLOR_CARD_BG, COLOR_DELETE_BG, COLOR_DELETE_TEXT, COLOR_KEEP_BG, COLOR_KEEP_TEXT,
@@ -247,8 +248,8 @@ impl CleanupView {
         ui.vertical_centered(|ui| {
             ui.add_space(SPACE_SM);
             ui.heading(
-                RichText::new("🧹 Bersihkan Sampah Sistem")
-                    .size(26.0)
+                RichText::new("Bersihkan Sampah Sistem")
+                    .size(24.0)
                     .color(COLOR_TEXT_PRIMARY)
                     .strong(),
             );
@@ -264,10 +265,10 @@ impl CleanupView {
             ui.add_space(SPACE_LG);
 
             let analyze_btn = ui.add_sized(
-                [320.0, 48.0],
+                [280.0, 44.0],
                 egui::Button::new(
-                    RichText::new("🔍 Analisis Sampah Sekarang")
-                        .size(16.0)
+                    RichText::new("Analisis Sampah Sekarang")
+                        .size(15.0)
                         .color(Color32::from_rgb(14, 16, 21))
                         .strong(),
                 )
@@ -300,7 +301,15 @@ impl CleanupView {
                     .inner_margin(egui::Margin::symmetric(16.0, 12.0))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new(cat.icon).size(20.0));
+                            render_icon_circle(
+                                ui,
+                                cat.icon,
+                                36.0,
+                                18.0,
+                                COLOR_CARD_BG,
+                                COLOR_BRAND_ACCENT,
+                            );
+                            ui.add_space(SPACE_XS);
                             ui.vertical(|ui| {
                                 ui.horizontal(|ui| {
                                     ui.label(
@@ -316,7 +325,7 @@ impl CleanupView {
                                         SafetyLevel::NeedsReview => {
                                             Badge::show(
                                                 ui,
-                                                "⚠️ Perlu Review",
+                                                "Perlu Review",
                                                 COLOR_SENSITIVE_BG,
                                                 COLOR_SENSITIVE_TEXT,
                                             );
@@ -434,7 +443,7 @@ impl CleanupView {
                 let cancel_btn = ui.add_sized(
                     [200.0, 38.0],
                     egui::Button::new(
-                        RichText::new(if is_cancelling { "Membatalkan..." } else { "⏹ Batalkan" })
+                        RichText::new(if is_cancelling { "Membatalkan..." } else { "Batalkan" })
                             .color(Color32::WHITE)
                             .strong(),
                     )
@@ -458,13 +467,13 @@ impl CleanupView {
         if total_detected == 0 {
             EmptyState::show(
                 ui,
-                "✨",
+                IconKind::Sparkles,
                 "Sistem Anda Bersih & Rapi!",
                 "Tidak ditemukan file sampah sementara atau cache usang. Semua drive dalam kondisi optimal.",
             );
             ui.vertical_centered(|ui| {
                 if ui
-                    .button(RichText::new("🔄 Analisis Ulang").color(Color32::WHITE))
+                    .button(RichText::new("Analisis Ulang").color(Color32::WHITE))
                     .clicked()
                 {
                     state.start_scan();
@@ -506,10 +515,10 @@ impl CleanupView {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let can_clean = selected_bytes > 0;
                         let clean_btn = ui.add_sized(
-                            [260.0, 42.0],
+                            [240.0, 40.0],
                             egui::Button::new(
                                 RichText::new(format!(
-                                    "🧹 Bersihkan ({})",
+                                    "Bersihkan ({})",
                                     format_bytes(selected_bytes)
                                 ))
                                 .size(14.0)
@@ -550,7 +559,7 @@ impl CleanupView {
 
             ui.separator();
 
-            if ui.small_button("🔄 Analisis Ulang").clicked() {
+            if ui.small_button("Analisis Ulang").clicked() {
                 state.start_scan();
             }
         });
@@ -584,7 +593,7 @@ impl CleanupView {
                         ui.horizontal(|ui| {
                             ui.checkbox(&mut cat.is_enabled, "");
 
-                            ui.label(RichText::new(cat.icon).size(18.0));
+                            render_icon(ui, cat.icon, 18.0, COLOR_BRAND_ACCENT);
 
                             ui.label(RichText::new(cat.title).strong().size(13.0));
 
@@ -593,7 +602,7 @@ impl CleanupView {
                                     Badge::show(ui, "Aman", COLOR_KEEP_BG, COLOR_KEEP_TEXT);
                                 }
                                 SafetyLevel::NeedsReview => {
-                                    Badge::show(ui, "⚠️ Perlu Review", COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT);
+                                    Badge::show(ui, "Perlu Review", COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT);
                                 }
                             }
 
@@ -621,7 +630,7 @@ impl CleanupView {
                                     );
 
                                     if has_items && cat.id != CleanupCategoryId::RecycleBin {
-                                        let arrow = if cat.is_expanded { "▼ Tutup" } else { "▶ Detail" };
+                                        let arrow = if cat.is_expanded { "Tutup" } else { "Detail" };
                                         if ui.small_button(arrow).clicked() {
                                             cat.is_expanded = !cat.is_expanded;
                                         }
@@ -692,11 +701,12 @@ impl CleanupView {
     fn render_completed(state: &mut CleanupState, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
             ui.add_space(SPACE_XL);
-            ui.label(RichText::new("🎉").size(48.0));
+            render_icon_circle(ui, IconKind::Check, 56.0, 28.0, COLOR_KEEP_BG, COLOR_KEEP_TEXT);
+            ui.add_space(SPACE_SM);
             ui.heading(
                 RichText::new("Pembersihan Selesai!")
-                    .size(26.0)
-                    .color(Color32::from_rgb(34, 197, 94))
+                    .size(24.0)
+                    .color(Color32::from_rgb(74, 222, 128))
                     .strong(),
             );
             ui.add_space(SPACE_LG);
@@ -732,7 +742,7 @@ impl CleanupView {
                             ui.add_space(SPACE_XS);
                             ui.label(
                                 RichText::new(
-                                    "ℹ File yang dilewati sedang aktif digunakan atau dikunci oleh sistem/aplikasi lain.",
+                                    "Catatan: File yang dilewati sedang aktif digunakan atau dikunci oleh sistem/aplikasi lain.",
                                 )
                                 .color(COLOR_ACCENT_HOVER)
                                 .size(11.0),
@@ -813,7 +823,7 @@ impl CleanupView {
                         egui::ScrollArea::vertical().max_height(140.0).show(ui, |ui| {
                             for cat in &selected_cats {
                                 ui.horizontal(|ui| {
-                                    ui.label(RichText::new(cat.icon).size(14.0));
+                                    render_icon(ui, cat.icon, 14.0, COLOR_BRAND_ACCENT);
                                     ui.label(RichText::new(cat.title).size(12.0));
                                     ui.with_layout(
                                         egui::Layout::right_to_left(egui::Align::Center),
@@ -832,7 +842,7 @@ impl CleanupView {
 
                 ui.add_space(10.0);
                 ui.label(
-                    RichText::new("ℹ Catatan Keamanan: File yang sedang aktif dipakai oleh Windows akan otomatis dilewati tanpa mengganggu sistem.")
+                    RichText::new("Catatan Keamanan: File yang sedang aktif dipakai oleh sistem akan otomatis dilewati tanpa mengganggu sistem.")
                         .color(COLOR_MUTED_TEXT)
                         .size(11.0),
                 );

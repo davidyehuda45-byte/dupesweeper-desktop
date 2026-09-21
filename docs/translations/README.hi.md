@@ -36,7 +36,8 @@ DupeSweeper एक **पोर्टेबल स्टैंडअलोन** �
 
 | ऑपरेटिंग सिस्टम | डेस्कटॉप ऐप (डाउनलोड करने के लिए क्लिक करें) | आकार | चलाने का तरीका |
 |---|---|:---:|---|
-| **🪟 Windows (x64)** | [⬇️ **dupesweeper-windows-x86_64.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-windows-x86_64.exe) | ~5.0 MB | डाउनलोड करें और `.exe` पर **डबल क्लिक** करें। तुरंत शुरू होगा! |
+| **🪟 Windows (इंस्टॉलर)** | [⬇️ **DupeSweeper-Setup.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/DupeSweeper-Setup.exe) | ~5.0 MB | **अनुशंसित।** डाउनलोड और इंस्टॉल करें। डेस्कटॉप और स्टार्ट मेन्यू पर स्वचालित रूप से स्वच्छ **"DupeSweeper"** शॉर्टकट बनाता है (बिना `.exe` नाम के)। |
+| **🪟 Windows (पोर्टेबल)** | [⬇️ **DupeSweeper.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/DupeSweeper.exe) | ~5.0 MB | बिना इंस्टॉलेशन वाला स्टैंडअलोन संस्करण। बस डाउनलोड करें और सीधे चलाने के लिए डबल-क्लिक करें। |
 | **🐧 Linux (x64)** | [⬇️ **dupesweeper-linux-x86_64**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-linux-x86_64) | ~11.3 MB | `chmod +x dupesweeper-linux-x86_64` और फिर `./dupesweeper-linux-x86_64` |
 | **🍎 macOS (Universal)** | [⬇️ **dupesweeper-macos-universal**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-macos-universal) | ~4.5 MB | `chmod +x dupesweeper-macos-universal` और फिर `./dupesweeper-macos-universal` |
 
@@ -46,7 +47,7 @@ DupeSweeper एक **पोर्टेबल स्टैंडअलोन** �
 
 ### 🛡️ Windows SmartScreen और सुरक्षा संबंधी जानकारी
 
-पहली बार `dupesweeper-windows-x86_64.exe` चलाने पर Windows Defender / SmartScreen एक नीली चेतावनी स्क्रीन दिखा सकता है:
+पहली बार `DupeSweeper-Setup.exe` या `DupeSweeper.exe` चलाने पर Windows Defender / SmartScreen एक नीली चेतावनी स्क्रीन दिखा सकता है:
 > **"Windows protected your PC"**  
 > *Microsoft Defender SmartScreen prevented an unrecognized app from starting.*
 
@@ -110,3 +111,4 @@ cargo build --release
 ```bash
 cargo test
 ```
+

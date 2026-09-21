@@ -36,7 +36,8 @@ DupeSweeper 为**绿色便携版独立应用**。您**无需**克隆 GitHub 仓�
 
 | 操作系统 | 桌面应用程序（点击直接下载） | 文件体积 | 运行方法 |
 |---|---|:---:|---|
-| **🪟 Windows (x64)** | [⬇️ **dupesweeper-windows-x86_64.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-windows-x86_64.exe) | ~5.0 MB | 下载后**双击** `.exe` 即可瞬间启动！ |
+| **🪟 Windows (安装包)** | [⬇️ **DupeSweeper-Setup.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/DupeSweeper-Setup.exe) | ~5.0 MB | **推荐。** 下载并安装，自动在桌面与开始菜单创建纯净 **"DupeSweeper"** 图标与快捷方式（不含 `.exe` 后缀）。 |
+| **🪟 Windows (便携版)** | [⬇️ **DupeSweeper.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/DupeSweeper.exe) | ~5.0 MB | 独立绿色单文件版，下载后双击即可直接运行。 |
 | **🐧 Linux (x64)** | [⬇️ **dupesweeper-linux-x86_64**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-linux-x86_64) | ~11.3 MB | 终端执行 `chmod +x dupesweeper-linux-x86_64` 并运行 `./dupesweeper-linux-x86_64` |
 | **🍎 macOS (Universal)** | [⬇️ **dupesweeper-macos-universal**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-macos-universal) | ~4.5 MB | 终端执行 `chmod +x dupesweeper-macos-universal` 并运行 `./dupesweeper-macos-universal` |
 
@@ -46,7 +47,7 @@ DupeSweeper 为**绿色便携版独立应用**。您**无需**克隆 GitHub 仓�
 
 ### 🛡️ Windows SmartScreen 与杀毒软件说明
 
-首次在 Windows 上下载并运行 `dupesweeper-windows-x86_64.exe` 时，Windows Defender / SmartScreen 可能会弹出蓝色提示框：
+首次在 Windows 上下载并运行 `DupeSweeper-Setup.exe` 或 `DupeSweeper.exe` 时，Windows Defender / SmartScreen 可能会弹出蓝色提示框：
 > **"Windows 已保护你的电脑"**  
 > *Microsoft Defender SmartScreen 阻止了无法识别的应用启动。*
 
@@ -144,3 +145,4 @@ cargo build --release
 ```bash
 cargo test
 ```
+

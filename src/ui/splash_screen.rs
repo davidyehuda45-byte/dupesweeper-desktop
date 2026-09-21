@@ -43,8 +43,8 @@ impl SplashScreen {
             ui.vertical_centered(|ui| {
                 ui.add_space(screen_rect.height() * 0.28);
 
-                // Lightning Icon
-                ui.label(RichText::new("⚡").size(72.0).color(icon_color));
+                // Lightning Vector Icon
+                crate::ui::icons::render_icon(ui, crate::ui::icons::IconKind::Lightning, 64.0, icon_color);
 
                 ui.add_space(SPACE_SM);
 

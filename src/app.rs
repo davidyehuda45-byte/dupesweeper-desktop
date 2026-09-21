@@ -12,6 +12,7 @@ use crate::scanner::{
 };
 use crate::ui::cleanup_view::{CleanupState, CleanupView};
 use crate::ui::components::{Badge, EmptyState, ModernProgressBar};
+use crate::ui::icons::{paint_icon, render_icon, render_icon_circle, IconKind};
 use crate::ui::splash_screen::SplashScreen;
 use crate::ui::theme::{
     file_extension_category, format_bytes, format_system_time, paint_dashed_rect,
@@ -105,6 +106,10 @@ pub struct DupeSweeperApp {
 
     // Thumbnail cache with background worker
     thumb_cache: ThumbnailCache,
+
+    // Shortcut installation state
+    shortcut_installed: bool,
+    shortcut_toast: Option<(String, Instant)>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -159,6 +164,8 @@ impl Default for DupeSweeperApp {
 
             last_report: None,
             thumb_cache: ThumbnailCache::new(),
+            shortcut_installed: false,
+            shortcut_toast: None,
         }
     }
 }
@@ -473,88 +480,97 @@ impl eframe::App for DupeSweeperApp {
                 egui::Frame::none()
                     .fill(COLOR_PANEL_BG)
                     .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
-                    .inner_margin(egui::Margin::symmetric(24.0, 14.0)),
+                    .inner_margin(egui::Margin::symmetric(24.0, 12.0)),
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
+                    // Logo + Brand Name
+                    render_icon(ui, IconKind::Lightning, 20.0, COLOR_BRAND_ACCENT);
+                    ui.add_space(4.0);
                     ui.label(
-                        RichText::new("⚡ DupeSweeper")
-                            .color(COLOR_BRAND_ACCENT)
-                            .size(20.0)
+                        RichText::new("DupeSweeper")
+                            .color(COLOR_TEXT_PRIMARY)
+                            .size(17.0)
                             .strong(),
                     );
-                    ui.add_space(SPACE_XS);
-                    ui.label(
-                        RichText::new("v6.0.0 • 100% Offline")
-                            .color(COLOR_MUTED_TEXT)
-                            .size(12.0),
-                    );
+                    ui.add_space(8.0);
+                    Badge::show(ui, "v6.0.0", COLOR_CARD_BG, COLOR_MUTED_TEXT);
+                    Badge::show(ui, "Offline", Color32::from_rgb(20, 36, 28), Color32::from_rgb(110, 231, 183));
 
                     ui.add_space(SPACE_LG);
 
-                    // Mode switch tabs
-                    let is_dup = self.mode == AppMode::DuplicateFinder;
-                    let dup_tab = ui.add(
-                        egui::Button::new(
-                            RichText::new("🔍 Cari File Duplikat")
-                                .color(if is_dup {
-                                    COLOR_BRAND_ACCENT
-                                } else {
-                                    COLOR_MUTED_TEXT
-                                })
-                                .strong()
-                                .size(13.0),
-                        )
-                        .fill(if is_dup {
-                            COLOR_CARD_BG
-                        } else {
-                            Color32::TRANSPARENT
-                        })
-                        .stroke(if is_dup {
-                            Stroke::new(1.0_f32, COLOR_BORDER)
-                        } else {
-                            Stroke::NONE
-                        })
-                        .rounding(Rounding::same(RADIUS_MD)),
-                    );
-                    if dup_tab.clicked() {
-                        self.mode = AppMode::DuplicateFinder;
-                    }
+                    // Sleek Segmented Switcher
+                    egui::Frame::none()
+                        .fill(COLOR_BG_DARK)
+                        .stroke(Stroke::new(1.0_f32, COLOR_BORDER_SUBTLE))
+                        .rounding(Rounding::same(RADIUS_MD))
+                        .inner_margin(egui::Margin::symmetric(3.0, 3.0))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                let is_dup = self.mode == AppMode::DuplicateFinder;
+                                let dup_btn = ui.add(
+                                    egui::Button::new(
+                                        RichText::new("Cari File Duplikat")
+                                            .color(if is_dup {
+                                                COLOR_TEXT_PRIMARY
+                                            } else {
+                                                COLOR_MUTED_TEXT
+                                            })
+                                            .strong()
+                                            .size(12.5),
+                                    )
+                                    .fill(if is_dup {
+                                        COLOR_CARD_BG
+                                    } else {
+                                        Color32::TRANSPARENT
+                                    })
+                                    .stroke(if is_dup {
+                                        Stroke::new(1.0_f32, COLOR_BORDER)
+                                    } else {
+                                        Stroke::NONE
+                                    })
+                                    .rounding(Rounding::same(RADIUS_SM)),
+                                );
+                                if dup_btn.clicked() {
+                                    self.mode = AppMode::DuplicateFinder;
+                                }
 
-                    let is_clean = self.mode == AppMode::GeneralCleanup;
-                    let clean_tab = ui.add(
-                        egui::Button::new(
-                            RichText::new("🧹 Bersihkan Sampah Sistem")
-                                .color(if is_clean {
-                                    COLOR_BRAND_ACCENT
-                                } else {
-                                    COLOR_MUTED_TEXT
-                                })
-                                .strong()
-                                .size(13.0),
-                        )
-                        .fill(if is_clean {
-                            COLOR_CARD_BG
-                        } else {
-                            Color32::TRANSPARENT
-                        })
-                        .stroke(if is_clean {
-                            Stroke::new(1.0_f32, COLOR_BORDER)
-                        } else {
-                            Stroke::NONE
-                        })
-                        .rounding(Rounding::same(RADIUS_MD)),
-                    );
-                    if clean_tab.clicked() {
-                        self.mode = AppMode::GeneralCleanup;
-                    }
+                                let is_clean = self.mode == AppMode::GeneralCleanup;
+                                let clean_btn = ui.add(
+                                    egui::Button::new(
+                                        RichText::new("Bersihkan Sampah")
+                                            .color(if is_clean {
+                                                COLOR_TEXT_PRIMARY
+                                            } else {
+                                                COLOR_MUTED_TEXT
+                                            })
+                                            .strong()
+                                            .size(12.5),
+                                    )
+                                    .fill(if is_clean {
+                                        COLOR_CARD_BG
+                                    } else {
+                                        Color32::TRANSPARENT
+                                    })
+                                    .stroke(if is_clean {
+                                        Stroke::new(1.0_f32, COLOR_BORDER)
+                                    } else {
+                                        Stroke::NONE
+                                    })
+                                    .rounding(Rounding::same(RADIUS_SM)),
+                                );
+                                if clean_btn.clicked() {
+                                    self.mode = AppMode::GeneralCleanup;
+                                }
+                            });
+                        });
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if self.mode == AppMode::DuplicateFinder && self.screen == AppScreen::Results {
                             if ui
                                 .add(
                                     egui::Button::new(
-                                        RichText::new("🔄 Scan Baru")
+                                        RichText::new("Scan Baru")
                                             .color(COLOR_TEXT_PRIMARY)
                                             .strong()
                                             .size(12.0),
@@ -569,6 +585,46 @@ impl eframe::App for DupeSweeperApp {
                                 self.groups.clear();
                                 self.expanded_groups.clear();
                                 self.thumb_cache.clear();
+                            }
+                        }
+
+                        #[cfg(windows)]
+                        {
+                            if !crate::installer::is_running_installed() && !self.shortcut_installed {
+                                let install_btn = ui.add(
+                                    egui::Button::new(
+                                        RichText::new("Pasang ke Komputer")
+                                            .color(COLOR_BRAND_ACCENT)
+                                            .strong()
+                                            .size(11.5),
+                                    )
+                                    .fill(COLOR_CARD_BG)
+                                    .stroke(Stroke::new(1.0_f32, COLOR_BRAND_ACCENT))
+                                    .rounding(Rounding::same(RADIUS_SM)),
+                                );
+                                if install_btn
+                                    .on_hover_text("Membuat shortcut aplikasi 'DupeSweeper' (tanpa .exe) di Desktop dan Start Menu Windows")
+                                    .clicked()
+                                {
+                                    match crate::installer::install_current_exe(true, true) {
+                                        Ok(_) => {
+                                            self.shortcut_installed = true;
+                                            self.shortcut_toast = Some((
+                                                "Shortcut 'DupeSweeper' berhasil dibuat di Desktop & Start Menu!".to_string(),
+                                                Instant::now(),
+                                            ));
+                                        }
+                                        Err(err) => {
+                                            self.shortcut_toast = Some((format!("Gagal memasang: {}", err), Instant::now()));
+                                        }
+                                    }
+                                }
+                            }
+
+                            if let Some((ref msg, instant)) = self.shortcut_toast {
+                                if instant.elapsed().as_secs() < 6 {
+                                    Badge::show(ui, msg, Color32::from_rgb(20, 36, 28), Color32::from_rgb(110, 231, 183));
+                                }
                             }
                         }
                     });
@@ -664,11 +720,7 @@ impl DupeSweeperApp {
         ui.allocate_new_ui(egui::UiBuilder::new().max_rect(drop_rect), |ui| {
             ui.vertical_centered(|ui| {
                 ui.add_space(SPACE_MD);
-                ui.label(
-                    RichText::new("📂")
-                        .size(36.0)
-                        .color(COLOR_BRAND_ACCENT),
-                );
+                render_icon(ui, IconKind::FolderOpen, 36.0, COLOR_BRAND_ACCENT);
                 ui.add_space(SPACE_XS);
                 ui.label(
                     RichText::new(if is_drop_active {
@@ -692,9 +744,9 @@ impl DupeSweeperApp {
                 ui.add_space(SPACE_SM);
 
                 let pick_btn = ui.add_sized(
-                    [240.0, 36.0],
+                    [220.0, 34.0],
                     egui::Button::new(
-                        RichText::new("📁 Pilih Folder / Drive...")
+                        RichText::new("Pilih Folder / Drive...")
                             .color(Color32::WHITE)
                             .strong()
                             .size(13.0),
@@ -726,7 +778,7 @@ impl DupeSweeperApp {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(
-                        RichText::new(format!("📁 Folder yang Akan Di-scan ({})", self.roots.len()))
+                        RichText::new(format!("Folder yang Akan Di-scan ({})", self.roots.len()))
                             .strong()
                             .size(14.0)
                             .color(COLOR_TEXT_PRIMARY),
@@ -757,7 +809,7 @@ impl DupeSweeperApp {
                 if self.roots.is_empty() {
                     ui.vertical_centered(|ui| {
                         ui.add_space(SPACE_SM);
-                        ui.label(RichText::new("📁").size(24.0).color(COLOR_MUTED_TEXT));
+                        render_icon(ui, IconKind::Folder, 28.0, COLOR_MUTED_TEXT);
                         ui.add_space(SPACE_XS);
                         ui.label(
                             RichText::new("Belum ada folder yang dipilih.")
@@ -790,7 +842,7 @@ impl DupeSweeperApp {
                                                     .size(11.0)
                                                     .color(COLOR_MUTED_TEXT),
                                             );
-                                            ui.label(RichText::new("📁").size(13.0));
+                                            render_icon(ui, IconKind::Folder, 14.0, COLOR_BRAND_ACCENT);
                                             ui.label(
                                                 RichText::new(root.display().to_string())
                                                     .strong()
@@ -803,7 +855,7 @@ impl DupeSweeperApp {
                                                     if ui
                                                         .add(
                                                             egui::Button::new(
-                                                                RichText::new("✕ Hapus")
+                                                                RichText::new("Hapus")
                                                                     .size(11.0)
                                                                     .color(COLOR_MUTED_TEXT),
                                                             )
@@ -854,7 +906,7 @@ impl DupeSweeperApp {
                 ui.add_space(SPACE_SM);
 
                 ui.collapsing(
-                    RichText::new("⚙ Pengaturan Scan Tambahan (Opsional)")
+                    RichText::new("Pengaturan Scan Tambahan (Opsional)")
                         .strong()
                         .color(COLOR_MUTED_TEXT)
                         .size(12.0),
@@ -907,10 +959,10 @@ impl DupeSweeperApp {
             let can_scan = !self.roots.is_empty();
             if can_scan {
                 let btn = ui.add_sized(
-                    [340.0, 48.0],
+                    [320.0, 46.0],
                     egui::Button::new(
-                        RichText::new("🚀 Mulai Scan Duplikat")
-                            .size(16.0)
+                        RichText::new("Mulai Scan Duplikat")
+                            .size(15.0)
                             .color(Color32::from_rgb(14, 16, 21))
                             .strong(),
                     )
@@ -923,10 +975,10 @@ impl DupeSweeperApp {
                 }
             } else {
                 ui.add_sized(
-                    [340.0, 48.0],
+                    [320.0, 46.0],
                     egui::Button::new(
-                        RichText::new("🚀 Mulai Scan Duplikat")
-                            .size(16.0)
+                        RichText::new("Mulai Scan Duplikat")
+                            .size(15.0)
                             .color(COLOR_DISABLED_TEXT)
                             .strong(),
                     )
@@ -1001,7 +1053,7 @@ impl DupeSweeperApp {
                 .add_sized(
                     [200.0, 38.0],
                     egui::Button::new(
-                        RichText::new("⏹ Batalkan Scan")
+                        RichText::new("Batalkan Scan")
                             .color(Color32::WHITE)
                             .strong(),
                     )
@@ -1075,7 +1127,7 @@ impl DupeSweeperApp {
                     .add_sized(
                         [200.0, 38.0],
                         egui::Button::new(
-                            RichText::new(if is_cancelling { "Membatalkan..." } else { "⏹ Batalkan" })
+                            RichText::new(if is_cancelling { "Membatalkan..." } else { "Batalkan" })
                                 .color(Color32::WHITE)
                                 .strong(),
                         )
@@ -1096,7 +1148,7 @@ impl DupeSweeperApp {
                 ui.add_space(60.0);
                 EmptyState::show(
                     ui,
-                    "🎉",
+                    IconKind::Sparkles,
                     "Tidak Ada File Duplikat!",
                     "Penyimpanan Anda bersih dan teratur. Tidak ditemukan file duplikat dalam folder yang dipilih.",
                 );
@@ -1105,7 +1157,7 @@ impl DupeSweeperApp {
                     .add_sized(
                         [200.0, 40.0],
                         egui::Button::new(
-                            RichText::new("🔄 Scan Folder Lain")
+                            RichText::new("Scan Folder Lain")
                                 .color(Color32::WHITE)
                                 .strong(),
                         )
@@ -1138,7 +1190,7 @@ impl DupeSweeperApp {
                     ui.vertical(|ui| {
                         ui.heading(
                             RichText::new(format!(
-                                "🎉 Ditemukan {} Grup Duplikat ({} File)",
+                                "Ditemukan {} Grup Duplikat ({} File)",
                                 total_groups, total_duplicates
                             ))
                             .size(18.0)
@@ -1155,7 +1207,7 @@ impl DupeSweeperApp {
                         if self.folders_skipped > 0 {
                             ui.label(
                                 RichText::new(format!(
-                                    "🚫 {} folder dependency/build di-skip otomatis (menghemat waktu scan)",
+                                    "Info: {} folder dependency/build di-skip otomatis (menghemat waktu scan)",
                                     self.folders_skipped
                                 ))
                                 .color(COLOR_ACCENT_HOVER)
@@ -1167,7 +1219,7 @@ impl DupeSweeperApp {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let can_clean = !selected_files.is_empty();
                         let clean_text = format!(
-                            "🗑 Bersihkan {} File ({})",
+                            "Bersihkan {} File ({})",
                             selected_files.len(),
                             format_bytes(selected_bytes)
                         );
@@ -1274,20 +1326,20 @@ impl DupeSweeperApp {
                     ui.separator();
 
                     // Collapse / Expand All controls
-                    if ui.small_button("▶ Buka Semua").clicked() {
+                    if ui.small_button("Buka Semua").clicked() {
                         for &idx in &matching_indices {
                             self.expanded_groups.insert(idx);
                         }
                     }
 
-                    if ui.small_button("▼ Tutup Semua").clicked() {
+                    if ui.small_button("Tutup Semua").clicked() {
                         self.expanded_groups.clear();
                     }
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.add(
                             egui::TextEdit::singleline(&mut self.filter_query)
-                                .hint_text("🔍 Cari nama file..."),
+                                .hint_text("Cari nama file..."),
                         );
                     });
                 });
@@ -1373,8 +1425,14 @@ impl DupeSweeperApp {
                                 .show(ui, |ui| {
                                     ui.set_height(ROW_HEIGHT - 12.0);
                                     ui.horizontal(|ui| {
-                                        let arrow = if is_expanded { "▼" } else { "▶" };
-                                        if ui.button(RichText::new(arrow).size(12.0).strong()).clicked() {
+                                        let (c_rect, c_resp) = ui.allocate_exact_size(Vec2::splat(16.0), egui::Sense::click());
+                                        paint_icon(
+                                            ui.painter(),
+                                            c_rect,
+                                            if is_expanded { IconKind::ChevronDown } else { IconKind::ChevronRight },
+                                            COLOR_TEXT_PRIMARY,
+                                        );
+                                        if c_resp.clicked() {
                                             toggle_expand_group = Some(group_idx);
                                         }
 
@@ -1411,18 +1469,18 @@ impl DupeSweeperApp {
                                         );
 
                                         if has_sensitive {
-                                            Badge::show(ui, "⚠️ Sensitif", COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT);
+                                            Badge::show(ui, "Sensitif", COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT);
                                         }
 
                                         if let Some(tm) = group.files.first().and_then(|f| f.template_match.as_ref()) {
                                             let (badge_txt, badge_bg, badge_fg) = match tm.category {
                                                 TemplateCategory::Documentation => (
-                                                    format!("🗑️ Template ({})", tm.framework),
+                                                    format!("Template ({})", tm.framework),
                                                     Color32::from_rgb(40, 52, 48),
                                                     Color32::from_rgb(140, 215, 180),
                                                 ),
                                                 TemplateCategory::Functional => (
-                                                    format!("📋 Bawaan ({})", tm.framework),
+                                                    format!("Bawaan ({})", tm.framework),
                                                     Color32::from_rgb(32, 45, 65),
                                                     Color32::from_rgb(130, 180, 240),
                                                 ),
@@ -1495,19 +1553,19 @@ impl DupeSweeperApp {
 
                                         // Sensitive file badge
                                         if file.is_sensitive {
-                                            Badge::show(ui, "⚠️ Sensitif", COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT);
+                                            Badge::show(ui, "Sensitif", COLOR_SENSITIVE_BG, COLOR_SENSITIVE_TEXT);
                                         }
 
                                         // Template Fingerprint Match badge
                                         if let Some(ref tm) = file.template_match {
                                             let (badge_txt, badge_bg, badge_fg) = match tm.category {
                                                 TemplateCategory::Documentation => (
-                                                    format!("🗑️ Template Default ({})", tm.framework),
+                                                    format!("Template ({})", tm.framework),
                                                     Color32::from_rgb(40, 52, 48),
                                                     Color32::from_rgb(140, 215, 180),
                                                 ),
                                                 TemplateCategory::Functional => (
-                                                    format!("📋 Bawaan {} (Belum Dimodifikasi)", tm.framework),
+                                                    format!("Bawaan ({})", tm.framework),
                                                     Color32::from_rgb(32, 45, 65),
                                                     Color32::from_rgb(130, 180, 240),
                                                 ),
@@ -1517,7 +1575,7 @@ impl DupeSweeperApp {
 
                                         // Recommendation badge
                                         if file.is_recommended_keep {
-                                            Badge::show(ui, "⭐ Simpan", COLOR_KEEP_BG, COLOR_KEEP_TEXT);
+                                            Badge::show(ui, "Pertahankan", COLOR_KEEP_BG, COLOR_KEEP_TEXT);
                                         } else if file.is_selected {
                                             Badge::show(ui, "Akan Dihapus", COLOR_DELETE_BG, COLOR_DELETE_TEXT);
                                         }
@@ -1535,10 +1593,10 @@ impl DupeSweeperApp {
                                         ui.with_layout(
                                             egui::Layout::right_to_left(egui::Align::Center),
                                             |ui| {
-                                                if ui.small_button("👁 Preview").clicked() {
+                                                if ui.small_button("Preview").clicked() {
                                                     open_file_path = Some(file.path.clone());
                                                 }
-                                                if ui.small_button("📂 Buka").clicked() {
+                                                if ui.small_button("Buka Folder").clicked() {
                                                     open_explorer_path = Some(file.path.clone());
                                                 }
                                                 ui.label(
@@ -1602,15 +1660,20 @@ impl DupeSweeperApp {
                         egui::Frame::none()
                             .fill(COLOR_SENSITIVE_BG)
                             .stroke(Stroke::new(1.0_f32, COLOR_SENSITIVE_TEXT))
-                            .rounding(Rounding::same(6.0))
-                            .inner_margin(10.0)
+                            .rounding(Rounding::same(RADIUS_MD))
+                            .inner_margin(12.0)
                             .show(ui, |ui| {
-                                ui.label(
-                                    RichText::new("⚠️ PERINGATAN: TERDETEKSI FILE SENSITIF!")
-                                        .color(COLOR_SENSITIVE_TEXT)
-                                        .strong()
-                                        .size(13.0),
-                                );
+                                ui.horizontal(|ui| {
+                                    render_icon(ui, IconKind::AlertTriangle, 16.0, COLOR_SENSITIVE_TEXT);
+                                    ui.add_space(4.0);
+                                    ui.label(
+                                        RichText::new("PERINGATAN: TERDETEKSI FILE SENSITIF!")
+                                            .color(COLOR_SENSITIVE_TEXT)
+                                            .strong()
+                                            .size(13.0),
+                                    );
+                                });
+                                ui.add_space(4.0);
                                 ui.label(
                                     RichText::new(
                                         "Anda memilih menghapus file yang terdeteksi sebagai config/kredensial sensitif (.env, key, secrets, credentials, dll). File jenis ini biasanya TIDAK memiliki backup. Lanjutkan?",
@@ -1631,7 +1694,7 @@ impl DupeSweeperApp {
                     ui.radio_value(
                         &mut self.selected_action_kind,
                         ActionOption::RecycleBin,
-                        "♻ Pindahkan ke Recycle Bin (Aman & Disarankan)",
+                        "Pindahkan ke Recycle Bin (Aman & Disarankan)",
                     );
                     ui.label(
                         RichText::new("File dapat dipulihkan kapan saja dari Recycle Bin Windows.")
@@ -1645,7 +1708,7 @@ impl DupeSweeperApp {
                     ui.radio_value(
                         &mut self.selected_action_kind,
                         ActionOption::Quarantine,
-                        "📦 Pindahkan ke Folder Karantina",
+                        "Pindahkan ke Folder Karantina",
                     );
                     if self.selected_action_kind == ActionOption::Quarantine {
                         ui.horizontal(|ui| {
@@ -1667,7 +1730,7 @@ impl DupeSweeperApp {
                     ui.radio_value(
                         &mut self.selected_action_kind,
                         ActionOption::PermanentDelete,
-                        "⚠ Hapus Permanen (Data Tidak Dapat Dipulihkan)",
+                        "Hapus Permanen (Data Tidak Dapat Dipulihkan)",
                     );
 
                     if self.selected_action_kind == ActionOption::PermanentDelete {
@@ -1693,11 +1756,12 @@ impl DupeSweeperApp {
                             .add_enabled(
                                 can_proceed,
                                 egui::Button::new(
-                                    RichText::new("✓ Jalankan Sekarang")
+                                    RichText::new("Jalankan Pembersihan")
                                         .color(Color32::WHITE)
                                         .strong(),
                                 )
-                                .fill(COLOR_ACCENT_PRIMARY),
+                                .fill(COLOR_ACCENT_PRIMARY)
+                                .rounding(Rounding::same(RADIUS_SM)),
                             )
                             .clicked()
                         {
@@ -1711,10 +1775,19 @@ impl DupeSweeperApp {
     fn render_completed_view(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
             ui.add_space(SPACE_XL);
+            render_icon_circle(
+                ui,
+                IconKind::Check,
+                56.0,
+                26.0,
+                Color32::from_rgba_premultiplied(34, 197, 94, 30),
+                Color32::from_rgb(34, 197, 94),
+            );
+            ui.add_space(SPACE_MD);
             ui.heading(
-                RichText::new("✨ Pembersihan Selesai!")
-                    .size(26.0)
-                    .color(Color32::from_rgb(34, 197, 94))
+                RichText::new("Pembersihan Selesai!")
+                    .size(24.0)
+                    .color(COLOR_TEXT_PRIMARY)
                     .strong(),
             );
             ui.add_space(SPACE_LG);
@@ -1759,9 +1832,9 @@ impl DupeSweeperApp {
                         ui.add_space(SPACE_MD);
                         if ui
                             .add_sized(
-                                [220.0, 36.0],
+                                [200.0, 36.0],
                                 egui::Button::new(
-                                    RichText::new("📄 Buka File Log")
+                                    RichText::new("Buka File Log")
                                         .color(COLOR_TEXT_PRIMARY)
                                         .strong(),
                                 )
@@ -1801,7 +1874,7 @@ impl DupeSweeperApp {
                     .add_sized(
                         [180.0, 42.0],
                         egui::Button::new(
-                            RichText::new("🔄 Scan Folder Baru")
+                            RichText::new("Scan Folder Baru")
                                 .color(Color32::from_rgb(14, 16, 21))
                                 .strong(),
                         )

@@ -34,12 +34,27 @@ jobs:
       - name: Build Release Binary
         run: cargo build --release
 
-      - name: Upload Windows Binary
+      - name: Prepare Windows Distribution
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item target/release/dupesweeper.exe dist/DupeSweeper-Setup.exe
+          Copy-Item target/release/dupesweeper.exe dist/DupeSweeper.exe
+
+      - name: Upload Windows Setup Installer
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: dupesweeper-windows-x86_64
-          path: target/release/dupesweeper.exe
+          name: DupeSweeper-Setup
+          path: dist/DupeSweeper-Setup.exe
+
+      - name: Upload Windows Portable
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: DupeSweeper-Portable
+          path: dist/DupeSweeper.exe
 
       - name: Upload Linux Binary
         if: runner.os == 'Linux'

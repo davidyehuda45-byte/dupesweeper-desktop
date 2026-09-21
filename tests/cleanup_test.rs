@@ -2,6 +2,7 @@ use dupesweeper::cleanup::categories::{
     CategoryScanResult, CleanupCategoryId, CleanupCategoryDef, CleanupItem, SafetyLevel,
     CLEANUP_CATEGORIES,
 };
+use dupesweeper::ui::icons::IconKind;
 use dupesweeper::cleanup::executor::CleanupExecutor;
 use dupesweeper::cleanup::recycle_bin::query_recycle_bin;
 use dupesweeper::cleanup::scanner::CleanupScanner;
@@ -54,7 +55,7 @@ fn test_locked_file_skipped_gracefully() {
         id: CleanupCategoryId::TempFiles,
         title: "Test Temp Files",
         description: "Test",
-        icon: "📁",
+        icon: IconKind::Folder,
         safety: SafetyLevel::Safe,
         default_enabled: true,
         warning: None,
@@ -187,7 +188,7 @@ fn test_size_calculation_matches_actual_deletion() {
         id: CleanupCategoryId::TempFiles,
         title: "Test Size Match",
         description: "Test",
-        icon: "📁",
+        icon: IconKind::Folder,
         safety: SafetyLevel::Safe,
         default_enabled: true,
         warning: None,

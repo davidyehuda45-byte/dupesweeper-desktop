@@ -2,6 +2,7 @@ use dupesweeper::actions::{ActionKind, DeleteProgressEvent, DeleteWorker};
 use dupesweeper::cleanup::categories::{
     CategoryScanResult, CleanupCategoryId, CleanupCategoryDef, CleanupItem, SafetyLevel,
 };
+use dupesweeper::ui::icons::IconKind;
 use dupesweeper::cleanup::executor::{CleanupProgressEvent, CleanupExecutor};
 use dupesweeper::scanner::FileItem;
 use std::fs;
@@ -175,7 +176,7 @@ fn test_cleanup_executor_cancellation() {
         id: CleanupCategoryId::TempFiles,
         title: "Test Cancel Temp",
         description: "Test",
-        icon: "📁",
+        icon: IconKind::Folder,
         safety: SafetyLevel::Safe,
         default_enabled: true,
         warning: None,

@@ -36,7 +36,8 @@ DupeSweeper adalah aplikasi desktop **portable standalone**. Pengguna **tidak pe
 
 | Sistem Operasi | File Aplikasi Desktop (Klik untuk Unduh) | Ukuran | Cara Menjalankan |
 |---|---|:---:|---|
-| **🪟 Windows (x64)** | [⬇️ **dupesweeper-windows-x86_64.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-windows-x86_64.exe) | ~5.0 MB | Unduh & **klik 2x** file `.exe`. Langsung terbuka! |
+| **🪟 Windows (Installer)** | [⬇️ **DupeSweeper-Setup.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/DupeSweeper-Setup.exe) | ~5.0 MB | **Disarankan.** Unduh & pasang. Otomatis membuat shortcut **"DupeSweeper"** di Desktop & Start Menu (nama bersih tanpa `.exe`). |
+| **🪟 Windows (Portable)** | [⬇️ **DupeSweeper.exe**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/DupeSweeper.exe) | ~5.0 MB | Versi mandiri tanpa instalasi. Cukup unduh & klik 2x untuk membuka langsung. |
 | **🐧 Linux (x64)** | [⬇️ **dupesweeper-linux-x86_64**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-linux-x86_64) | ~11.3 MB | `chmod +x dupesweeper-linux-x86_64` lalu `./dupesweeper-linux-x86_64` |
 | **🍎 macOS (Universal)** | [⬇️ **dupesweeper-macos-universal**](https://github.com/davidyehuda45-byte/dupesweeper-desktop/releases/download/v6.0.0/dupesweeper-macos-universal) | ~4.5 MB | `chmod +x dupesweeper-macos-universal` lalu `./dupesweeper-macos-universal` |
 
@@ -46,7 +47,7 @@ DupeSweeper adalah aplikasi desktop **portable standalone**. Pengguna **tidak pe
 
 ### 🛡️ Catatan Keamanan Windows SmartScreen & Antivirus
 
-Saat Anda pertama kali mengunduh dan menjalankan file `dupesweeper-windows-x86_64.exe`, Windows Defender / SmartScreen mungkin menampilkan jendela peringatan bertuliskan:
+Saat Anda pertama kali mengunduh dan menjalankan file `DupeSweeper-Setup.exe` atau `DupeSweeper.exe`, Windows Defender / SmartScreen mungkin menampilkan jendela peringatan bertuliskan:
 > **"Windows protected your PC / Windows melindungi PC Anda"**  
 > *Microsoft Defender SmartScreen prevented an unrecognized app from starting.*
 
