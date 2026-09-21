@@ -199,33 +199,24 @@ pub fn get_consumer_apps_cache_dirs() -> Vec<PathBuf> {
 }
 
 pub fn query_recycle_bin() -> (u64, u64) {
-    let mut total_bytes: u64 = 0;
-    let mut total_items: u64 = 0;
+    let mut info = SHQUERYRBINFO {
+        cb_size: std::mem::size_of::<SHQUERYRBINFO>() as u32,
+        i64_size: 0,
+        i64_num_items: 0,
+    };
 
-    for drive_letter in b'C'..=b'Z' {
-        let root = format!("{}:\\\0", drive_letter as char);
-        let wide: Vec<u16> = root.encode_utf16().collect();
-
-        let mut info = SHQUERYRBINFO {
-            cb_size: std::mem::size_of::<SHQUERYRBINFO>() as u32,
-            i64_size: 0,
-            i64_num_items: 0,
-        };
-
-        unsafe {
-            let res = SHQueryRecycleBinW(wide.as_ptr(), &mut info);
-            if res == 0 {
-                if info.i64_size > 0 {
-                    total_bytes += info.i64_size as u64;
-                }
-                if info.i64_num_items > 0 {
-                    total_items += info.i64_num_items as u64;
-                }
-            }
+    unsafe {
+        // Passing NULL queries all drives at once in a single call according to Microsoft Win32 API docs
+        let res = SHQueryRecycleBinW(std::ptr::null(), &mut info);
+        if res == 0 {
+            return (
+                if info.i64_size > 0 { info.i64_size as u64 } else { 0 },
+                if info.i64_num_items > 0 { info.i64_num_items as u64 } else { 0 },
+            );
         }
     }
 
-    (total_bytes, total_items)
+    (0, 0)
 }
 
 pub fn empty_recycle_bin() -> Result<(), String> {
