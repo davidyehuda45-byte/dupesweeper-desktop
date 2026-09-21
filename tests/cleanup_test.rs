@@ -28,17 +28,27 @@ fn create_temp_cleanup_dir(prefix: &str) -> PathBuf {
 fn test_locked_file_skipped_gracefully() {
     let dir = create_temp_cleanup_dir("locked_file");
     let normal_file = dir.join("normal.tmp");
-    let locked_file = dir.join("locked.tmp");
+    let locked_sub = dir.join("locked_folder");
+    fs::create_dir_all(&locked_sub).unwrap();
+    let locked_file = locked_sub.join("locked.tmp");
 
     fs::write(&normal_file, b"normal temporary content 12345").unwrap();
     fs::write(&locked_file, b"locked file content cannot delete").unwrap();
 
-    // Lock the file by opening it in exclusive mode (no sharing on Windows)
+    // Lock the file by opening it in exclusive mode (Windows) or read-only directory (Unix)
     let mut options = OpenOptions::new();
     options.read(true).write(true);
     #[cfg(windows)]
     options.share_mode(0);
     let _lock_handle = options.open(&locked_file).unwrap();
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&locked_sub).unwrap().permissions();
+        perms.set_mode(0o555);
+        fs::set_permissions(&locked_sub, perms).unwrap();
+    }
 
     let def = CleanupCategoryDef {
         id: CleanupCategoryId::TempFiles,
@@ -77,8 +87,17 @@ fn test_locked_file_skipped_gracefully() {
     assert_eq!(report.skipped_locked, 1, "1 locked file must be recorded as skipped");
     assert!(locked_file.exists(), "Locked file must still exist");
 
-    // Release lock handle
+    // Release lock handle / restore permissions
     drop(_lock_handle);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = fs::metadata(&locked_sub) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o755);
+            let _ = fs::set_permissions(&locked_sub, perms);
+        }
+    }
     let _ = fs::remove_dir_all(&dir);
 }
 

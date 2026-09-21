@@ -8,8 +8,7 @@ use std::time::Instant;
 
 use crate::actions::{ActionKind, ActionReport, DeleteProgressEvent, DeleteWorker};
 use crate::scanner::{
-    DuplicateGroup, FileItem, ScanProgress, Scanner, SelectionStrategy, TemplateCategory,
-    TemplateFingerprint, WalkerConfig,
+    DuplicateGroup, ScanProgress, Scanner, SelectionStrategy, TemplateCategory, WalkerConfig,
 };
 use crate::ui::cleanup_view::{CleanupState, CleanupView};
 use crate::ui::components::{Badge, EmptyState, ModernProgressBar};
@@ -106,11 +105,6 @@ pub struct DupeSweeperApp {
 
     // Thumbnail cache with background worker
     thumb_cache: ThumbnailCache,
-
-    // Automation fields for visual verification
-    auto_screenshot: bool,
-    screenshot_step: usize,
-    screenshot_name: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -165,10 +159,6 @@ impl Default for DupeSweeperApp {
 
             last_report: None,
             thumb_cache: ThumbnailCache::new(),
-
-            auto_screenshot: std::env::var("DUPESWEEPER_AUTO_SCREENSHOT").is_ok(),
-            screenshot_step: 0,
-            screenshot_name: None,
         }
     }
 }
@@ -315,192 +305,8 @@ impl DupeSweeperApp {
     }
 }
 
-fn save_screenshot_image(image: &egui::ColorImage, filename: &str) {
-    let out_dir = PathBuf::from(r"C:\Users\Admin\.gemini\antigravity\brain\3421f6fe-4f97-435a-92a3-a58ffaa100fc");
-    let file_path = out_dir.join(filename);
-    let width = image.width() as u32;
-    let height = image.height() as u32;
-    let mut rgba = Vec::with_capacity((width * height * 4) as usize);
-    for pixel in &image.pixels {
-        rgba.push(pixel.r());
-        rgba.push(pixel.g());
-        rgba.push(pixel.b());
-        rgba.push(pixel.a());
-    }
-    if let Some(buf) = image::RgbaImage::from_raw(width, height, rgba) {
-        let _ = buf.save(&file_path);
-        eprintln!("Saved screenshot: {}", file_path.display());
-    }
-}
-
-fn create_sample_duplicate_groups() -> Vec<DuplicateGroup> {
-    vec![
-        DuplicateGroup {
-            hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string(),
-            file_size: 4_850_000,
-            files: vec![
-                FileItem {
-                    path: PathBuf::from(r"C:\Projects\ClientPortal_Web\assets\hero_banner.png"),
-                    size: 4_850_000,
-                    created: None,
-                    modified: Some(std::time::SystemTime::now()),
-                    is_selected: false,
-                    is_recommended_keep: true,
-                    is_sensitive: false,
-                    template_match: None,
-                },
-                FileItem {
-                    path: PathBuf::from(r"D:\Backups\2026_Archive\hero_banner_copy.png"),
-                    size: 4_850_000,
-                    created: None,
-                    modified: Some(std::time::SystemTime::now()),
-                    is_selected: true,
-                    is_recommended_keep: false,
-                    is_sensitive: false,
-                    template_match: None,
-                },
-            ],
-        },
-        DuplicateGroup {
-            hash: "a4f89d38c71b69201f6543b593ef33a1e941f17374b868e8e7c10b77b7524021".to_string(),
-            file_size: 1_280,
-            files: vec![
-                FileItem {
-                    path: PathBuf::from(r"C:\Projects\ClientPortal_Web\.env.production"),
-                    size: 1_280,
-                    created: None,
-                    modified: Some(std::time::SystemTime::now()),
-                    is_selected: false,
-                    is_recommended_keep: false,
-                    is_sensitive: true,
-                    template_match: None,
-                },
-                FileItem {
-                    path: PathBuf::from(r"D:\Backups\2026_Archive\.env.backup"),
-                    size: 1_280,
-                    created: None,
-                    modified: Some(std::time::SystemTime::now()),
-                    is_selected: false,
-                    is_recommended_keep: false,
-                    is_sensitive: true,
-                    template_match: None,
-                },
-            ],
-        },
-        DuplicateGroup {
-            hash: "123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0".to_string(),
-            file_size: 4_512,
-            files: vec![
-                FileItem {
-                    path: PathBuf::from(r"C:\Projects\ClientPortal_Web\README.md"),
-                    size: 4_512,
-                    created: None,
-                    modified: Some(std::time::SystemTime::now()),
-                    is_selected: true,
-                    is_recommended_keep: false,
-                    is_sensitive: false,
-                    template_match: Some(TemplateFingerprint {
-                        name: "Laravel 11 README".to_string(),
-                        framework: "Laravel".to_string(),
-                        category: TemplateCategory::Documentation,
-                        hash: "123456789abcdef0".to_string(),
-                    }),
-                },
-                FileItem {
-                    path: PathBuf::from(r"D:\Backups\2026_Archive\Laravel_README.md"),
-                    size: 4_512,
-                    created: None,
-                    modified: Some(std::time::SystemTime::now()),
-                    is_selected: true,
-                    is_recommended_keep: false,
-                    is_sensitive: false,
-                    template_match: Some(TemplateFingerprint {
-                        name: "Laravel 11 README".to_string(),
-                        framework: "Laravel".to_string(),
-                        category: TemplateCategory::Documentation,
-                        hash: "123456789abcdef0".to_string(),
-                    }),
-                },
-            ],
-        },
-    ]
-}
-
 impl eframe::App for DupeSweeperApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Automation for visual verification screenshots
-        if self.auto_screenshot {
-            if self.screen == AppScreen::Splash {
-                self.screen = AppScreen::Setup;
-            }
-
-            ctx.input(|i| {
-                for event in &i.raw.events {
-                    if let egui::Event::Screenshot { image, .. } = event {
-                        if let Some(name) = self.screenshot_name.take() {
-                            save_screenshot_image(image, &name);
-                        }
-                    }
-                }
-            });
-
-            self.screenshot_step += 1;
-            match self.screenshot_step {
-                2 => {
-                    self.screen = AppScreen::Setup;
-                    self.roots.clear();
-                    self.screenshot_name = Some("screen_01_setup_empty.png".to_string());
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
-                }
-                5 => {
-                    self.screen = AppScreen::Setup;
-                    self.roots = vec![
-                        PathBuf::from(r"C:\Projects\ClientPortal_Web"),
-                        PathBuf::from(r"D:\Backups\2026_Archive"),
-                    ];
-                    self.screenshot_name = Some("screen_02_setup_populated.png".to_string());
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
-                }
-                8 => {
-                    self.screen = AppScreen::Scanning;
-                    self.scan_stage_name = "Tahap 3: Deep BLAKE3 Streaming Hash (100% Exact Match)...".to_string();
-                    self.scan_file_detail = r"D:\Backups\2026_Archive\dataset_video_render.mp4".to_string();
-                    self.scan_items_stat = "1,840 / 2,450 file terverifikasi".to_string();
-                    self.scan_bytes_stat = "4.65 GB / 6.20 GB diproses".to_string();
-                    self.scan_progress_ratio = 0.72;
-                    self.screenshot_name = Some("screen_03_scanning.png".to_string());
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
-                }
-                11 => {
-                    self.screen = AppScreen::Results;
-                    self.total_files_scanned = 2450;
-                    self.folders_skipped = 18;
-                    self.groups = create_sample_duplicate_groups();
-                    self.expanded_groups.insert(0);
-                    self.expanded_groups.insert(1);
-                    self.expanded_groups.insert(2);
-                    self.screenshot_name = Some("screen_04_results_duplicate.png".to_string());
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
-                }
-                14 => {
-                    self.mode = AppMode::GeneralCleanup;
-                    self.cleanup_state.screen = CleanupScreen::Idle;
-                    self.screenshot_name = Some("screen_05_cleanup_setup.png".to_string());
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
-                }
-                17 => {
-                    self.mode = AppMode::GeneralCleanup;
-                    self.cleanup_state.screen = CleanupScreen::Results;
-                    self.screenshot_name = Some("screen_06_cleanup_results.png".to_string());
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
-                }
-                20 => {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                }
-                _ => {}
-            }
-            ctx.request_repaint();
-        }
 
         // Render splash screen if in splash state
         if self.screen == AppScreen::Splash {
