@@ -23,6 +23,28 @@ DupeSweeper adalah aplikasi desktop **portable standalone**. Pengguna **tidak pe
 
 ---
 
+### 🛡️ Catatan Keamanan Windows SmartScreen & Antivirus
+
+Saat Anda pertama kali mengunduh dan menjalankan file `dupesweeper-windows-x86_64.exe`, Windows Defender / SmartScreen mungkin menampilkan jendela peringatan bertuliskan:
+> **"Windows protected your PC / Windows melindungi PC Anda"**  
+> *Microsoft Defender SmartScreen prevented an unrecognized app from starting.*
+
+#### 🤔 Kenapa peringatan ini muncul?
+1. **Software Open-Source Bebas Biaya:** DupeSweeper adalah aplikasi 100% gratis dan open-source. Microsoft SmartScreen secara default menandai file `.exe` yang tidak ditandatangani dengan *EV Code Signing Certificate* berbayar (yang berbiaya \$300–\$500/tahun).
+2. **File Rilis Baru:** SmartScreen bekerja berdasarkan sistem reputasi akumulatif. Setiap rilis versi baru akan dianggap "belum dikenal" sampai reputasi unduhan meningkat di server Microsoft.
+
+#### 🚀 Cara Menjalankannya (Hanya Sekali di Awal):
+1. Pada jendela biru SmartScreen, klik teks **"More info"** *(Info selengkapnya)*.
+2. Klik tombol **"Run anyway"** *(Tetap jalankan)* yang muncul di pojok kanan bawah.
+3. DupeSweeper akan langsung terbuka seketika!
+
+> 🔒 **Jaminan Keamanan & Privasi 100%:**
+> - **100% Offline (Zero Telemetry):** Aplikasi tidak terhubung ke internet sama sekali, tidak mengirim data analitik, dan tidak melacak pengguna.
+> - **No Administrator Privilege Required:** Berjalan dengan izin pengguna biasa (*asInvoker*), tidak pernah meminta hak akses Administrator (UAC).
+> - **Transparan & Open-Source:** Seluruh source code dapat diaudit secara bebas di repositori GitHub ini. Binary Windows dan multi-platform dibangun langsung secara otomatis dan reproducible lewat GitHub Actions CI.
+
+---
+
 ## 🌐 Fitur Baru di v6.0.0: Dukungan Cross-Platform Penuh
 
 ### 1. Arsitektur Abstraksi Platform (`src/platform/`)
