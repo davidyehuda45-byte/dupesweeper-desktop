@@ -61,7 +61,7 @@ impl eframe::App for SetupWizard {
                             .strong(),
                     );
                     ui.label(
-                        RichText::new("v6.0.0 — Duplicate File Finder & Cleaner")
+                        RichText::new("v11.0.0 — Duplicate File Finder & Cleaner")
                             .color(Color32::from_rgb(156, 163, 175))
                             .size(12.0),
                     );

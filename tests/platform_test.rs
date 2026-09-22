@@ -93,7 +93,7 @@ fn test_installer_info_and_shortcut_creation() {
         assert!(info.is_some(), "Windows install info must be resolvable");
         let info = info.unwrap();
         assert_eq!(info.app_name, "DupeSweeper");
-        assert_eq!(info.version, "6.0.0");
+        assert_eq!(info.version, "11.0.0");
         assert!(info.install_dir.to_string_lossy().contains("DupeSweeper"));
         assert!(info.desktop_shortcut.to_string_lossy().ends_with("DupeSweeper.lnk"));
         assert!(info.start_menu_shortcut.to_string_lossy().ends_with("DupeSweeper.lnk"));

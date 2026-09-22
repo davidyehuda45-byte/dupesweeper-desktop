@@ -7,11 +7,15 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use crate::actions::{ActionKind, ActionReport, DeleteProgressEvent, DeleteWorker};
+use crate::history::{HistoryActionKind, HistoryEntry, HistoryStore};
 use crate::scanner::{
     DuplicateGroup, ScanProgress, Scanner, SelectionStrategy, TemplateCategory, WalkerConfig,
 };
+use crate::settings::{AppSettings, AutoScanInterval};
+use crate::ui::analyzer_view::{AnalyzerState, AnalyzerView};
 use crate::ui::cleanup_view::{CleanupState, CleanupView};
 use crate::ui::components::{Badge, EmptyState, ModernProgressBar};
+use crate::ui::history_view::{HistoryUiState, HistoryView};
 use crate::ui::icons::{paint_icon, render_icon, render_icon_circle, IconKind};
 use crate::ui::splash_screen::SplashScreen;
 use crate::ui::theme::{
@@ -29,6 +33,7 @@ use crate::ui::thumbnail::ThumbnailCache;
 pub enum AppMode {
     DuplicateFinder,
     GeneralCleanup,
+    SizeAnalyzer,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -107,9 +112,24 @@ pub struct DupeSweeperApp {
     // Thumbnail cache with background worker
     thumb_cache: ThumbnailCache,
 
-    // Shortcut installation state
-    shortcut_installed: bool,
-    shortcut_toast: Option<(String, Instant)>,
+    // Folder size analyzer mode state
+    analyzer_state: AnalyzerState,
+
+    // History & Undo overlay
+    history_ui: HistoryUiState,
+
+    // Persisted settings & auto-scan scheduler
+    settings: AppSettings,
+    show_settings_popup: bool,
+    last_scan_finished_at: Option<Instant>,
+
+    // Tracks what was targeted in the current/last delete op, so a history
+    // entry (and Recycle Bin trash refs for Undo) can be recorded afterwards.
+    pending_delete_paths: Vec<PathBuf>,
+    last_action_kind: Option<ActionKind>,
+
+    // Transient toast notification: (message, is_error, shown_at)
+    toast: Option<(String, bool, Instant)>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -164,8 +184,15 @@ impl Default for DupeSweeperApp {
 
             last_report: None,
             thumb_cache: ThumbnailCache::new(),
-            shortcut_installed: false,
-            shortcut_toast: None,
+
+            analyzer_state: AnalyzerState::default(),
+            history_ui: HistoryUiState::default(),
+            settings: AppSettings::default(),
+            show_settings_popup: false,
+            last_scan_finished_at: None,
+            pending_delete_paths: Vec::new(),
+            last_action_kind: None,
+            toast: None,
         }
     }
 }
@@ -179,7 +206,21 @@ fn dirs_fallback_quarantine() -> PathBuf {
 impl DupeSweeperApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         setup_custom_theme(&cc.egui_ctx);
-        Self::default()
+        let mut app = Self::default();
+        app.settings = AppSettings::load();
+        if app.roots.is_empty() {
+            app.roots = app
+                .settings
+                .last_scan_roots
+                .iter()
+                .filter(|p| p.exists())
+                .cloned()
+                .collect();
+        }
+        if app.settings.auto_scan_interval.as_secs().is_some() {
+            app.last_scan_finished_at = Some(Instant::now());
+        }
+        app
     }
 
     fn start_scan(&mut self) {
@@ -236,6 +277,72 @@ impl DupeSweeperApp {
         crate::platform::open_file(path);
     }
 
+    /// Small square icon-only button used in the top toolbar.
+    fn icon_toolbar_button(ui: &mut egui::Ui, icon: IconKind, tooltip: &str) -> bool {
+        let size = 30.0;
+        let (rect, resp) = ui.allocate_exact_size(Vec2::splat(size), egui::Sense::click());
+        let bg = if resp.hovered() { COLOR_CARD_HOVER } else { COLOR_CARD_BG };
+        ui.painter().rect_filled(rect, Rounding::same(RADIUS_SM), bg);
+        ui.painter()
+            .rect_stroke(rect, Rounding::same(RADIUS_SM), Stroke::new(1.0_f32, COLOR_BORDER));
+        let icon_rect = egui::Rect::from_center_size(rect.center(), Vec2::splat(15.0));
+        paint_icon(ui.painter(), icon_rect, icon, COLOR_TEXT_PRIMARY);
+        resp.on_hover_text(tooltip).clicked()
+    }
+
+    fn render_settings_popup(&mut self, ctx: &egui::Context) {
+        let mut still_open = true;
+        egui::Window::new("Pengaturan")
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .fixed_size([380.0, 300.0])
+            .open(&mut still_open)
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new("Auto-Scan Terjadwal")
+                        .strong()
+                        .size(14.0)
+                        .color(COLOR_TEXT_PRIMARY),
+                );
+                ui.label(
+                    RichText::new(
+                        "Otomatis memindai ulang folder terakhir yang di-scan, selama aplikasi ini tetap terbuka.",
+                    )
+                    .color(COLOR_MUTED_TEXT)
+                    .size(11.5),
+                );
+                ui.add_space(SPACE_SM);
+
+                let mut changed = false;
+                for interval in AutoScanInterval::ALL {
+                    if ui
+                        .radio_value(&mut self.settings.auto_scan_interval, interval, interval.label())
+                        .changed()
+                    {
+                        changed = true;
+                    }
+                }
+                if changed {
+                    self.settings.last_scan_roots = self.roots.clone();
+                    self.settings.save();
+                    self.last_scan_finished_at = Some(Instant::now());
+                }
+
+                ui.add_space(SPACE_MD);
+                if self.roots.is_empty() {
+                    ui.label(
+                        RichText::new(
+                            "Pilih minimal satu folder di tab \"Cari File Duplikat\" agar auto-scan dapat berjalan.",
+                        )
+                        .color(COLOR_SENSITIVE_TEXT)
+                        .size(11.0),
+                    );
+                }
+            });
+        self.show_settings_popup = still_open;
+    }
+
     fn apply_global_strategy(&mut self, strategy: SelectionStrategy) {
         self.current_strategy = strategy;
         for group in &mut self.groups {
@@ -281,6 +388,9 @@ impl DupeSweeperApp {
             ActionOption::PermanentDelete => ActionKind::PermanentDelete,
         };
 
+        self.pending_delete_paths = selected_files.iter().map(|f| f.path.clone()).collect();
+        self.last_action_kind = Some(kind.clone());
+
         self.delete_cancel_flag = Arc::new(AtomicBool::new(false));
         self.delete_current = 0;
         self.delete_total = selected_files.len();
@@ -299,6 +409,7 @@ impl DupeSweeperApp {
 
     fn finalize_deletion(&mut self, report: ActionReport) {
         self.delete_rx = None;
+        self.record_duplicate_history(&report);
 
         // Remove deleted files from groups (files that no longer exist on disk)
         for group in &mut self.groups {
@@ -309,6 +420,67 @@ impl DupeSweeperApp {
 
         self.last_report = Some(report);
         self.screen = AppScreen::Completed;
+    }
+
+    /// Records a history entry for the just-finished delete op. For Recycle
+    /// Bin actions, also captures trash references so it can later be undone.
+    fn record_duplicate_history(&mut self, report: &ActionReport) {
+        let action_kind = self.last_action_kind.take();
+        let targeted_paths = std::mem::take(&mut self.pending_delete_paths);
+
+        if report.successful == 0 {
+            return;
+        }
+
+        let history_kind = match action_kind {
+            Some(ActionKind::RecycleBin) | None => HistoryActionKind::RecycleBin,
+            Some(ActionKind::Quarantine(_)) => HistoryActionKind::Quarantine,
+            Some(ActionKind::PermanentDelete) => HistoryActionKind::PermanentDelete,
+        };
+
+        let trash_refs = if history_kind == HistoryActionKind::RecycleBin {
+            let failed: HashSet<&PathBuf> = report.error_details.iter().map(|(p, _)| p).collect();
+            let successful_paths: Vec<PathBuf> = targeted_paths
+                .into_iter()
+                .filter(|p| !failed.contains(p))
+                .collect();
+            crate::history::capture_trash_refs(&successful_paths)
+        } else {
+            Vec::new()
+        };
+
+        let entry = HistoryEntry::new(
+            "Pencari File Duplikat",
+            history_kind,
+            report.successful,
+            report.bytes_freed,
+            trash_refs,
+        );
+        HistoryStore::add_entry(entry);
+    }
+
+    fn export_duplicates(&mut self, as_json: bool) {
+        let default_name = if as_json {
+            "dupesweeper_duplicates.json"
+        } else {
+            "dupesweeper_duplicates.csv"
+        };
+        let Some(path) = rfd::FileDialog::new().set_file_name(default_name).save_file() else {
+            return;
+        };
+        let result = if as_json {
+            crate::export::export_duplicates_json(&self.groups, &path)
+        } else {
+            crate::export::export_duplicates_csv(&self.groups, &path)
+        };
+        self.toast = Some(match result {
+            Ok(_) => (
+                format!("Laporan berhasil diekspor ke {}", path.display()),
+                false,
+                Instant::now(),
+            ),
+            Err(e) => (format!("Gagal mengekspor: {}", e), true, Instant::now()),
+        });
     }
 }
 
@@ -428,9 +600,48 @@ impl eframe::App for DupeSweeperApp {
             self.folders_skipped = finished_folders_skipped;
             self.scan_rx = None;
             self.screen = AppScreen::Results;
+            self.last_scan_finished_at = Some(Instant::now());
+            self.settings.last_scan_roots = self.roots.clone();
+            self.settings.save();
         } else if reset_to_setup {
             self.scan_rx = None;
             self.screen = AppScreen::Setup;
+        }
+
+        // In-app auto-scan scheduler: while idle on the Duplicate Finder tab,
+        // periodically re-scan the last-used folders per the configured interval.
+        if self.mode == AppMode::DuplicateFinder
+            && matches!(self.screen, AppScreen::Setup | AppScreen::Results)
+            && self.scan_rx.is_none()
+            && !self.roots.is_empty()
+        {
+            if let Some(interval_secs) = self.settings.auto_scan_interval.as_secs() {
+                let due = self
+                    .last_scan_finished_at
+                    .map(|t| t.elapsed().as_secs() >= interval_secs)
+                    .unwrap_or(false);
+                if due {
+                    self.start_scan();
+                    self.toast = Some((
+                        "Auto-scan terjadwal dijalankan.".to_string(),
+                        false,
+                        Instant::now(),
+                    ));
+                }
+            }
+        }
+
+        // Record history for a just-finished General Cleanup session
+        if let Some(report) = self.cleanup_state.just_completed.take() {
+            if report.successful_deleted > 0 {
+                HistoryStore::add_entry(HistoryEntry::new(
+                    "Pembersih Sampah Umum",
+                    HistoryActionKind::PermanentDelete,
+                    report.successful_deleted,
+                    report.bytes_freed,
+                    Vec::new(),
+                ));
+            }
         }
 
         // Receive deletion background messages safely
@@ -494,7 +705,7 @@ impl eframe::App for DupeSweeperApp {
                             .strong(),
                     );
                     ui.add_space(8.0);
-                    Badge::show(ui, "v6.0.0", COLOR_CARD_BG, COLOR_MUTED_TEXT);
+                    Badge::show(ui, "v11.0.0", COLOR_CARD_BG, COLOR_MUTED_TEXT);
                     Badge::show(ui, "Offline", Color32::from_rgb(20, 36, 28), Color32::from_rgb(110, 231, 183));
 
                     ui.add_space(SPACE_LG);
@@ -562,10 +773,47 @@ impl eframe::App for DupeSweeperApp {
                                 if clean_btn.clicked() {
                                     self.mode = AppMode::GeneralCleanup;
                                 }
+
+                                let is_analyzer = self.mode == AppMode::SizeAnalyzer;
+                                let analyzer_btn = ui.add(
+                                    egui::Button::new(
+                                        RichText::new("Analisis Disk")
+                                            .color(if is_analyzer {
+                                                COLOR_TEXT_PRIMARY
+                                            } else {
+                                                COLOR_MUTED_TEXT
+                                            })
+                                            .strong()
+                                            .size(12.5),
+                                    )
+                                    .fill(if is_analyzer {
+                                        COLOR_CARD_BG
+                                    } else {
+                                        Color32::TRANSPARENT
+                                    })
+                                    .stroke(if is_analyzer {
+                                        Stroke::new(1.0_f32, COLOR_BORDER)
+                                    } else {
+                                        Stroke::NONE
+                                    })
+                                    .rounding(Rounding::same(RADIUS_SM)),
+                                );
+                                if analyzer_btn.clicked() {
+                                    self.mode = AppMode::SizeAnalyzer;
+                                }
                             });
                         });
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if Self::icon_toolbar_button(ui, IconKind::Settings, "Pengaturan") {
+                            self.show_settings_popup = true;
+                        }
+                        ui.add_space(SPACE_XS);
+                        if Self::icon_toolbar_button(ui, IconKind::History, "Riwayat & Undo") {
+                            self.history_ui.open_panel();
+                        }
+                        ui.add_space(SPACE_SM);
+
                         if self.mode == AppMode::DuplicateFinder && self.screen == AppScreen::Results {
                             if ui
                                 .add(
@@ -586,45 +834,18 @@ impl eframe::App for DupeSweeperApp {
                                 self.expanded_groups.clear();
                                 self.thumb_cache.clear();
                             }
+                            ui.add_space(SPACE_SM);
                         }
 
-                        #[cfg(windows)]
-                        {
-                            if !crate::installer::is_running_installed() && !self.shortcut_installed {
-                                let install_btn = ui.add(
-                                    egui::Button::new(
-                                        RichText::new("Pasang ke Komputer")
-                                            .color(COLOR_BRAND_ACCENT)
-                                            .strong()
-                                            .size(11.5),
-                                    )
-                                    .fill(COLOR_CARD_BG)
-                                    .stroke(Stroke::new(1.0_f32, COLOR_BRAND_ACCENT))
-                                    .rounding(Rounding::same(RADIUS_SM)),
-                                );
-                                if install_btn
-                                    .on_hover_text("Membuat shortcut aplikasi 'DupeSweeper' (tanpa .exe) di Desktop dan Start Menu Windows")
-                                    .clicked()
-                                {
-                                    match crate::installer::install_current_exe(true, true) {
-                                        Ok(_) => {
-                                            self.shortcut_installed = true;
-                                            self.shortcut_toast = Some((
-                                                "Shortcut 'DupeSweeper' berhasil dibuat di Desktop & Start Menu!".to_string(),
-                                                Instant::now(),
-                                            ));
-                                        }
-                                        Err(err) => {
-                                            self.shortcut_toast = Some((format!("Gagal memasang: {}", err), Instant::now()));
-                                        }
-                                    }
-                                }
-                            }
-
-                            if let Some((ref msg, instant)) = self.shortcut_toast {
-                                if instant.elapsed().as_secs() < 6 {
-                                    Badge::show(ui, msg, Color32::from_rgb(20, 36, 28), Color32::from_rgb(110, 231, 183));
-                                }
+                        if let Some((msg, is_err, when)) = &self.toast {
+                            if when.elapsed().as_secs() < 5 {
+                                let (bg, fg) = if *is_err {
+                                    (Color32::from_rgb(69, 26, 26), COLOR_DELETE_TEXT)
+                                } else {
+                                    (Color32::from_rgb(20, 36, 28), Color32::from_rgb(110, 231, 183))
+                                };
+                                Badge::show(ui, msg, bg, fg);
+                                ctx.request_repaint_after(std::time::Duration::from_millis(500));
                             }
                         }
                     });
@@ -646,11 +867,19 @@ impl eframe::App for DupeSweeperApp {
                 AppMode::GeneralCleanup => {
                     CleanupView::render(&mut self.cleanup_state, ctx, ui);
                 }
+                AppMode::SizeAnalyzer => {
+                    AnalyzerView::render(&mut self.analyzer_state, ctx, ui);
+                }
             });
 
         // Modal Confirmation Dialog
         if self.show_confirm_dialog {
             self.render_confirmation_modal(ctx);
+        }
+
+        HistoryView::render(&mut self.history_ui, ctx);
+        if self.show_settings_popup {
+            self.render_settings_popup(ctx);
         }
     }
 }
@@ -1341,6 +1570,13 @@ impl DupeSweeperApp {
                             egui::TextEdit::singleline(&mut self.filter_query)
                                 .hint_text("Cari nama file..."),
                         );
+                        ui.add_space(SPACE_SM);
+                        if ui.small_button("Export JSON").clicked() {
+                            self.export_duplicates(true);
+                        }
+                        if ui.small_button("Export CSV").clicked() {
+                            self.export_duplicates(false);
+                        }
                     });
                 });
             });
@@ -1851,7 +2087,7 @@ impl DupeSweeperApp {
 
             ui.add_space(SPACE_XL);
             ui.horizontal(|ui| {
-                ui.add_space((ui.available_width() - 380.0) / 2.0);
+                ui.add_space((ui.available_width() - 556.0) / 2.0);
 
                 if ui
                     .add_sized(
@@ -1868,6 +2104,23 @@ impl DupeSweeperApp {
                     .clicked()
                 {
                     self.screen = AppScreen::Results;
+                }
+
+                if ui
+                    .add_sized(
+                        [180.0, 42.0],
+                        egui::Button::new(
+                            RichText::new("Riwayat & Undo")
+                                .color(COLOR_TEXT_PRIMARY)
+                                .strong(),
+                        )
+                        .fill(COLOR_PANEL_BG)
+                        .stroke(Stroke::new(1.0_f32, COLOR_BORDER))
+                        .rounding(Rounding::same(RADIUS_MD)),
+                    )
+                    .clicked()
+                {
+                    self.history_ui.open_panel();
                 }
 
                 if ui

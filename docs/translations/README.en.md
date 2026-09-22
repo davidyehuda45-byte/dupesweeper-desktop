@@ -1,7 +1,7 @@
 <div align="center">
 
 # ⚡ DupeSweeper - Duplicate File Finder & Cleaner
-### Version 6.0.0 — Cross-Platform Desktop Support (Windows, Linux, macOS)
+### Version 11.0.0 — Export, History & Undo, Auto-Scan, Disk Analyzer
 
 **Fast, Lightweight & Safe Multi-Platform Duplicate File Finder & System Cleaner**
 

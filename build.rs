@@ -6,8 +6,8 @@ fn main() {
     res.set("OriginalFilename", "dupesweeper.exe");
     res.set("LegalCopyright", "Copyright (c) 2026 David Yehuda Surbakti");
     res.set("CompanyName", "David Yehuda Surbakti");
-    res.set("FileVersion", "6.0.0.0");
-    res.set("ProductVersion", "6.0.0.0");
+    res.set("FileVersion", "11.0.0.0");
+    res.set("ProductVersion", "11.0.0.0");
     
     if std::path::Path::new("assets/icon.ico").exists() {
         res.set_icon("assets/icon.ico");
@@ -16,7 +16,7 @@ fn main() {
     res.set_manifest(r#"
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
 <assemblyIdentity
-    version="6.0.0.0"
+    version="11.0.0.0"
     processorArchitecture="*"
     name="DavidYehudaSurbakti.DupeSweeper"
     type="win32"

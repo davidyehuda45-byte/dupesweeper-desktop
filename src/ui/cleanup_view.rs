@@ -50,6 +50,9 @@ pub struct CleanupState {
 
     pub show_confirm_modal: bool,
     pub last_report: Option<CleanupExecutionReport>,
+    /// Set once when a cleanup run finishes, then drained by the app to record history.
+    pub just_completed: Option<CleanupExecutionReport>,
+    pub export_status: Option<(String, bool)>,
 }
 
 impl Default for CleanupState {
@@ -76,6 +79,8 @@ impl Default for CleanupState {
 
             show_confirm_modal: false,
             last_report: None,
+            just_completed: None,
+            export_status: None,
         }
     }
 }
@@ -172,7 +177,8 @@ impl CleanupState {
                                 }
                             }
                         }
-                        self.last_report = Some(report);
+                        self.last_report = Some(report.clone());
+                        self.just_completed = Some(report);
                         self.clean_rx = None;
                         self.screen = CleanupScreen::Completed;
                         break;
@@ -218,6 +224,26 @@ impl CleanupState {
 
     pub fn total_detected_items(&self) -> usize {
         self.categories.iter().map(|c| c.items.len()).sum()
+    }
+
+    pub fn export_results(&mut self, as_json: bool) {
+        let default_name = if as_json {
+            "dupesweeper_cleanup.json"
+        } else {
+            "dupesweeper_cleanup.csv"
+        };
+        let Some(path) = rfd::FileDialog::new().set_file_name(default_name).save_file() else {
+            return;
+        };
+        let result = if as_json {
+            crate::export::export_cleanup_json(&self.categories, &path)
+        } else {
+            crate::export::export_cleanup_csv(&self.categories, &path)
+        };
+        self.export_status = Some(match result {
+            Ok(_) => (format!("Laporan berhasil diekspor ke {}", path.display()), false),
+            Err(e) => (format!("Gagal mengekspor: {}", e), true),
+        });
     }
 }
 
@@ -562,7 +588,26 @@ impl CleanupView {
             if ui.small_button("Analisis Ulang").clicked() {
                 state.start_scan();
             }
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.small_button("Export JSON").clicked() {
+                    state.export_results(true);
+                }
+                if ui.small_button("Export CSV").clicked() {
+                    state.export_results(false);
+                }
+            });
         });
+
+        if let Some((msg, is_err)) = &state.export_status {
+            ui.add_space(SPACE_XS);
+            let (bg, fg) = if *is_err {
+                (Color32::from_rgb(69, 26, 26), COLOR_DELETE_TEXT)
+            } else {
+                (Color32::from_rgb(20, 36, 28), COLOR_KEEP_TEXT)
+            };
+            Badge::show(ui, msg, bg, fg);
+        }
 
         ui.add_space(SPACE_SM);
 

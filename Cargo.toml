@@ -1,6 +1,6 @@
 [package]
 name = "dupesweeper"
-version = "6.0.0"
+version = "11.0.0"
 edition = "2021"
 authors = ["David Yehuda Surbakti"]
 description = "Fast, lightweight, 100% offline duplicate file finder and cleaner for Windows, Linux, and macOS"

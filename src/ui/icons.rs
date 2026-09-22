@@ -24,6 +24,11 @@ pub enum IconKind {
     ChevronDown,
     Rocket,
     Sparkles,
+    History,
+    Settings,
+    Download,
+    ChartBar,
+    Undo,
 }
 
 /// Paints a vector icon scaled inside the given rectangle.
@@ -370,6 +375,96 @@ pub fn paint_icon(painter: &egui::Painter, rect: Rect, kind: IconKind, color: Co
             draw_star(Pos2::new(center.x - s * 0.1, center.y - s * 0.1), s * 0.32);
             draw_star(Pos2::new(center.x + s * 0.25, center.y + s * 0.2), s * 0.18);
         }
+
+        IconKind::History => {
+            // Clock face with a back-turning arrow tail (history/undo-time)
+            let r = s * 0.34;
+            let c = Pos2::new(center.x + s * 0.02, center.y);
+            let num_pts = 12;
+            let start_angle = 0.9_f32;
+            let end_angle = 6.0_f32;
+            for i in 0..num_pts {
+                let a1 = start_angle + (end_angle - start_angle) * (i as f32 / num_pts as f32);
+                let a2 = start_angle + (end_angle - start_angle) * ((i + 1) as f32 / num_pts as f32);
+                let p1 = Pos2::new(c.x + r * a1.cos(), c.y + r * a1.sin());
+                let p2 = Pos2::new(c.x + r * a2.cos(), c.y + r * a2.sin());
+                painter.line_segment([p1, p2], stroke);
+            }
+            // Arrowhead at the tail start
+            let tip = Pos2::new(c.x + r * start_angle.cos(), c.y + r * start_angle.sin());
+            painter.line_segment([tip, Pos2::new(tip.x - s * 0.1, tip.y - s * 0.08)], stroke);
+            painter.line_segment([tip, Pos2::new(tip.x - s * 0.02, tip.y + s * 0.13)], stroke);
+            // Clock hands
+            painter.line_segment([c, Pos2::new(c.x, c.y - r * 0.55)], stroke);
+            painter.line_segment([c, Pos2::new(c.x + r * 0.4, c.y + r * 0.1)], stroke);
+        }
+
+        IconKind::Settings => {
+            // Gear: center circle + evenly spaced teeth
+            let r_inner = s * 0.16;
+            let r_outer = s * 0.32;
+            painter.circle_stroke(center, r_inner, stroke);
+            let teeth = 8;
+            for i in 0..teeth {
+                let angle = (i as f32 / teeth as f32) * std::f32::consts::TAU;
+                let inner = Pos2::new(center.x + r_outer * 0.75 * angle.cos(), center.y + r_outer * 0.75 * angle.sin());
+                let outer = Pos2::new(center.x + r_outer * angle.cos(), center.y + r_outer * angle.sin());
+                painter.line_segment([inner, outer], Stroke::new(2.2_f32, color));
+            }
+        }
+
+        IconKind::Download => {
+            // Arrow pointing down into a tray
+            let top = Pos2::new(center.x, center.y - s * 0.32);
+            let bot = Pos2::new(center.x, center.y + s * 0.08);
+            painter.line_segment([top, bot], stroke);
+            painter.line_segment([bot, Pos2::new(bot.x - s * 0.16, bot.y - s * 0.16)], stroke);
+            painter.line_segment([bot, Pos2::new(bot.x + s * 0.16, bot.y - s * 0.16)], stroke);
+            // Tray
+            let tray_y = center.y + s * 0.32;
+            painter.line_segment(
+                [Pos2::new(center.x - s * 0.32, tray_y), Pos2::new(center.x + s * 0.32, tray_y)],
+                stroke,
+            );
+        }
+
+        IconKind::ChartBar => {
+            // Ascending bar chart
+            let base_y = center.y + s * 0.32;
+            let bar_w = s * 0.16;
+            let heights = [s * 0.24, s * 0.44, s * 0.62];
+            for (i, h) in heights.iter().enumerate() {
+                let x = center.x - s * 0.32 + (i as f32) * (bar_w + s * 0.08);
+                let rect = Rect::from_min_max(
+                    Pos2::new(x, base_y - h),
+                    Pos2::new(x + bar_w, base_y),
+                );
+                painter.rect_stroke(rect, 1.0, stroke);
+            }
+            painter.line_segment(
+                [Pos2::new(center.x - s * 0.36, base_y), Pos2::new(center.x + s * 0.36, base_y)],
+                stroke,
+            );
+        }
+
+        IconKind::Undo => {
+            // Curved back-arrow
+            let r = s * 0.3;
+            let c = Pos2::new(center.x + s * 0.05, center.y + s * 0.05);
+            let num_pts = 12;
+            let start_angle = 3.4_f32;
+            let end_angle = 7.9_f32;
+            for i in 0..num_pts {
+                let a1 = start_angle + (end_angle - start_angle) * (i as f32 / num_pts as f32);
+                let a2 = start_angle + (end_angle - start_angle) * ((i + 1) as f32 / num_pts as f32);
+                let p1 = Pos2::new(c.x + r * a1.cos(), c.y + r * a1.sin());
+                let p2 = Pos2::new(c.x + r * a2.cos(), c.y + r * a2.sin());
+                painter.line_segment([p1, p2], stroke);
+            }
+            let tip = Pos2::new(c.x + r * start_angle.cos(), c.y + r * start_angle.sin());
+            painter.line_segment([tip, Pos2::new(tip.x + s * 0.14, tip.y - s * 0.04)], stroke);
+            painter.line_segment([tip, Pos2::new(tip.x + s * 0.01, tip.y - s * 0.16)], stroke);
+        }
     }
 }
 
@@ -394,3 +489,4 @@ pub fn render_icon_circle(
     let icon_rect = Rect::from_center_size(rect.center(), Vec2::splat(icon_size));
     paint_icon(ui.painter(), icon_rect, kind, icon_color);
 }
+

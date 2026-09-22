@@ -41,7 +41,7 @@ pub mod windows {
         Some(InstallInfo {
             app_name: "DupeSweeper",
             publisher: "David Yehuda Surbakti",
-            version: "6.0.0",
+            version: "11.0.0",
             install_dir,
             exe_path,
             desktop_shortcut,
